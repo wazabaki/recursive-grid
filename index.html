@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Recursive Grid Generator</title>
+<title>Pattern Studio</title>
 <style>
   * { box-sizing: border-box; }
   html, body {
@@ -15,744 +15,1757 @@
     background: #e9e9e7;
     color: #171717;
   }
-  .app {
-    width: 100vw;
-    height: 100vh;
+  .app { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+
+  /* ---- tabs ---- */
+  .tabbar {
+    flex: 0 0 46px;
     display: flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 0 14px;
+    background: #f5f5f2;
+    border-bottom: 1px solid #d5d5d0;
   }
+  .tab {
+    border: 0;
+    background: none;
+    padding: 0 15px;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #8c8c86;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s ease;
+  }
+  .tab:hover { color: #4a4a46; }
+  .tab.active { color: #171717; border-bottom-color: #171717; }
+
+  .body { flex: 1; min-height: 0; display: flex; }
+
   aside {
-    width: 280px;
-    flex: 0 0 280px;
-    height: 100vh;
-    padding: 28px 24px;
+    width: 292px;
+    flex: 0 0 292px;
+    padding: 20px 18px 18px;
     background: #f5f5f2;
     border-right: 1px solid #d5d5d0;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
   }
-  h1 {
-    margin: 0;
-    font-size: 19px;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-  }
-  .intro {
-    margin-top: 8px;
-    color: #666;
-    font-size: 12px;
-    line-height: 1.45;
-  }
-  .section {
+  .panel { display: flex; flex-direction: column; gap: 14px; min-height: 100%; }
+  .panel[hidden] { display: none; }
+
+  h1 { margin: 0; font-size: 17px; line-height: 1.1; letter-spacing: -0.03em; }
+  .intro { margin-top: 7px; color: #77776f; font-size: 11.5px; line-height: 1.45; }
+
+  /* ---- control groups ---- */
+  .group {
+    border: 1px solid #e0e0da;
+    border-radius: 10px;
+    background: #fbfbf9;
+    padding: 13px 12px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
-  .label {
-    font-size: 11px;
+  .group.deferred { background: #f7f7f3; border-style: dashed; }
+  .group.deferred.pending { border-color: #9b5cff; background: #faf7ff; }
+  .group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .group-title {
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: .08em;
+    letter-spacing: .09em;
     text-transform: uppercase;
-    color: #777;
+    color: #8a8a82;
   }
+  .group.deferred.pending .group-title { color: #7b3fd4; }
+  .group-note { font-size: 9.5px; color: #aaaaa2; letter-spacing: .01em; white-space: nowrap; }
+  .group.deferred.pending .group-note { color: #9b5cff; font-weight: 600; }
 
-  .shape-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
-  }
+  .label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a8a82; }
+
+  /* ---- shapes ---- */
+  .shape-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .shape-btn {
-    width: 100%;
-    height: 38px;
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid #d8d8d2;
+    border-radius: 7px;
+    background: #fff;
+    cursor: pointer;
     padding: 0;
     display: grid;
     place-items: center;
-    border-radius: 7px;
-  }
-  .shape-icon {
-    display: block;
-    width: 18px;
-    height: 18px;
-    position: relative;
-  }
-  .shape-icon.circle {
-    border-radius: 50%;
-    background: currentColor;
-  }
-  .shape-icon.ring {
-    border-radius: 50%;
-    border: 3px solid currentColor;
-  }
-  .shape-icon.diamond {
-    width: 15px;
-    height: 15px;
-    background: currentColor;
-    transform: rotate(45deg);
-  }
-  .shape-icon.square {
-    width: 15px;
-    height: 15px;
-    background: currentColor;
-  }
-  .shape-icon.cross::before,
-  .shape-icon.cross::after {
-    content: "";
-    position: absolute;
-    background: currentColor;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-  }
-  .shape-icon.cross::before { width: 18px; height: 6px; }
-  .shape-icon.cross::after { width: 6px; height: 18px; }
-  .shape-icon.triangle {
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 18px solid currentColor;
-  }
-  .color-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .color-control {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    padding: 7px 8px;
-    border: 1px solid #d0d0cb;
-    border-radius: 7px;
-    background: #fff;
-    font-size: 11px;
-    color: #555;
-  }
-  .color-control input,
-  .depth-color {
-    width: 25px;
-    height: 25px;
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-  }
-  .cycle-row {
-    display: flex;
-    gap: 5px;
-    opacity: .45;
-    pointer-events: none;
-  }
-  .cycle-row.enabled {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .shape-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 7px;
-  }
-  button, select, input {
-    font: inherit;
-  }
-  .shape-btn {
-    height: 42px;
-    border: 1px solid #d0d0cb;
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 12px;
-    transition: .15s ease;
+    color: #171717;
+    transition: .13s ease;
   }
   .shape-btn:hover { border-color: #999; }
-  .shape-btn.active {
-    background: #171717;
-    color: white;
-    border-color: #171717;
-  }
-  .control {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 12px;
-    font-size: 12px;
-  }
-  input[type="range"] { width: 100%; accent-color: #171717; }
-  .value {
-    min-width: 30px;
-    text-align: right;
+  .shape-btn.active { background: #171717; border-color: #171717; color: #fff; }
+  .shape-btn svg { width: 60%; height: 60%; display: block; fill: currentColor; }
+  .shape-btn .kill {
+    position: absolute;
+    top: -5px; right: -5px;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    border: 1px solid #d8d8d2;
+    background: #fff;
     color: #666;
+    font-size: 10px;
+    line-height: 1;
+    display: none;
+    place-items: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .shape-btn:hover .kill { display: grid; }
+  .shape-btn .kill:hover { background: #e33; color: #fff; border-color: #e33; }
+
+  .upload {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    height: 32px;
+    border: 1px dashed #c8c8c2;
+    border-radius: 7px;
+    background: #fff;
+    color: #6a6a64;
+    font-size: 11px;
+    cursor: pointer;
+    transition: .13s ease;
+  }
+  .upload:hover { border-color: #171717; color: #171717; }
+  .upload input { display: none; }
+
+  /* ---- colour ---- */
+  .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .color-control {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    padding: 6px 7px;
+    border: 1px solid #dcdcd6;
+    border-radius: 7px;
+    background: #fff;
+    font-size: 10.5px;
+    color: #55554f;
+    cursor: pointer;
+  }
+  .color-control input, .depth-color {
+    width: 24px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer;
+  }
+  .cycle-row { display: flex; gap: 5px; opacity: .4; pointer-events: none; }
+  .cycle-row.enabled { opacity: 1; pointer-events: auto; }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .seg button {
+    height: 30px; border: 1px solid #dcdcd6; border-radius: 7px; background: #fff;
+    font: inherit; font-size: 11px; color: #55554f; cursor: pointer; transition: .13s ease;
+  }
+  .seg button:hover { border-color: #999; }
+  .seg button.active { background: #171717; color: #fff; border-color: #171717; }
+
+  /* ---- sliders ---- */
+  button, select, input { font: inherit; }
+  .control { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; font-size: 11.5px; color: #3c3c38; }
+  input[type="range"] { width: 100%; accent-color: #171717; grid-column: 1/-1; margin: 2px 0 0; }
+  .group.deferred input[type="range"] { accent-color: #7b3fd4; }
+  .value { min-width: 34px; text-align: right; color: #7a7a72; font-variant-numeric: tabular-nums; font-size: 11px; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: #44443f; cursor: pointer; }
+  .check input { accent-color: #171717; }
+
+  .seed-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+  .seed-row input[type="text"] {
+    border: 1px solid #dcdcd6; border-radius: 7px; padding: 0 9px; height: 32px;
+    background: #fff; font-size: 11.5px; color: #171717; min-width: 0;
     font-variant-numeric: tabular-nums;
   }
-  .check {
-    display: flex;
-    gap: 9px;
-    align-items: center;
-    font-size: 12px;
-    color: #444;
+  .mini {
+    height: 32px; padding: 0 11px; border: 1px solid #dcdcd6; border-radius: 7px;
+    background: #fff; font-size: 11px; color: #55554f; cursor: pointer; transition: .13s ease;
   }
-  .check input { accent-color: #171717; }
-  .actions {
-    margin-top: auto;
-    display: grid;
-    gap: 8px;
-  }
+  .mini:hover { border-color: #171717; color: #171717; }
+
+  /* ---- actions ---- */
+  .spacer { flex: 1; min-height: 6px; }
+  .actions { display: grid; gap: 7px; }
   .action {
-    height: 44px;
-    border-radius: 8px;
-    border: 1px solid #171717;
-    background: #171717;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 650;
-    font-size: 12px;
+    height: 40px; border-radius: 8px; border: 1px solid #171717;
+    background: #171717; color: #fff; cursor: pointer; font-weight: 650; font-size: 11.5px;
+    transition: .13s ease;
   }
-  .action.secondary {
-    background: transparent;
-    color: #171717;
-  }
-  .action:disabled {
-    opacity: .35;
-    cursor: default;
-  }
-  .status {
-    min-height: 32px;
-    font-size: 11px;
-    line-height: 1.4;
-    color: #777;
-  }
-  main {
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    place-items: center;
-    padding: 35px;
-  }
+  .action.secondary { background: transparent; color: #171717; }
+  .action.secondary:hover:not(:disabled) { background: rgba(0,0,0,.05); }
+  .action.hot { background: #9b5cff; border-color: #9b5cff; }
+  .action:disabled { opacity: .3; cursor: default; }
+  .export-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .status { min-height: 30px; font-size: 10.5px; line-height: 1.45; color: #85857d; }
+  .status .warn { color: #b4700a; }
+
+  /* ---- stage ---- */
+  main { flex: 1; min-width: 0; min-height: 0; display: grid; place-items: center; padding: 30px; }
+  .stage { display: contents; }
+  .stage[hidden] { display: none; }
   .canvas-wrap {
-    width: min(82vh, calc(100vw - 360px), 900px);
+    width: min(calc(100vh - 150px), calc(100vw - 400px), 880px);
     aspect-ratio: 1;
-    background: white;
+    background: #fff;
     box-shadow: 0 16px 50px rgba(0,0,0,.10);
   }
-  canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
-  @media (max-width: 700px) {
+  canvas { width: 100%; height: 100%; display: block; }
+
+  #svgSandbox { position: fixed; left: -99999px; top: 0; width: 200px; height: 200px; opacity: 0; pointer-events: none; }
+
+  @media (max-width: 760px) {
     html, body { overflow: auto; }
-    .app { height: auto; min-height: 100vh; flex-direction: column; }
-    aside {
-      width: 100%;
-      height: auto;
-      max-height: 55vh;
-      flex-basis: auto;
-      border-right: 0;
-      border-bottom: 1px solid #d5d5d0;
-    }
-    main { min-height: 70vh; padding: 20px; }
+    .app { height: auto; min-height: 100vh; }
+    .body { flex-direction: column; }
+    aside { width: 100%; flex-basis: auto; border-right: 0; border-bottom: 1px solid #d5d5d0; }
+    main { min-height: 70vh; padding: 18px; }
     .canvas-wrap { width: min(90vw, 70vh); }
   }
 </style>
 </head>
 <body>
+<div id="svgSandbox"></div>
 <div class="app">
-  <aside>
-    <div>
-      <h1>Recursive Grid</h1>
-      <div class="intro">
-        A 2×2 grid recursively subdivides its empty cells. Every empty cell goes through the same process until all cells are filled.
+  <div class="tabbar">
+    <button class="tab active" data-tab="grid">Recursive Grid</button>
+    <button class="tab" data-tab="pack">Circle Packing</button>
+  </div>
+
+  <div class="body">
+    <aside>
+      <!-- ============ GENERATOR 1 ============ -->
+      <div class="panel" data-panel="grid">
+        <div>
+          <h1>Recursive Grid</h1>
+          <div class="intro">A 2&times;2 grid recursively subdivides its empty cells. Every empty cell goes through the same process until all cells are filled.</div>
+        </div>
+
+        <div class="group">
+          <div class="group-head">
+            <span class="group-title">Appearance</span>
+            <span class="group-note">live</span>
+          </div>
+
+          <div class="shape-grid" id="shapeGrid"></div>
+          <label class="upload">
+            <input type="file" id="svgUpload" accept=".svg,image/svg+xml" multiple>
+            <span>+ Add SVG shapes</span>
+          </label>
+
+          <div class="color-row">
+            <label class="color-control"><span>Background</span><input id="bgColor" type="color" value="#ffffff"></label>
+            <label class="color-control"><span>Shape</span><input id="shapeColor" type="color" value="#111111"></label>
+          </div>
+
+          <label class="check"><input id="cycleBg" type="checkbox"> Cycle background by depth</label>
+          <div class="cycle-row" id="cycleColors">
+            <input class="depth-color" type="color" value="#ffffff">
+            <input class="depth-color" type="color" value="#f2efff">
+            <input class="depth-color" type="color" value="#eee8ff">
+            <input class="depth-color" type="color" value="#e9dcff">
+          </div>
+
+          <div class="control">
+            <span>Shape size</span><span class="value" id="shapeSizeValue">100%</span>
+            <input id="shapeSize" type="range" min="10" max="100" value="100">
+          </div>
+
+          <label class="check"><input id="showActive" type="checkbox" checked> Show active cell while drawing</label>
+        </div>
+
+        <div class="group deferred" id="gridStructure">
+          <div class="group-head">
+            <span class="group-title">Structure</span>
+            <span class="group-note" id="gridPendingNote">next regenerate</span>
+          </div>
+
+          <div class="seed-row">
+            <input type="text" id="seed" value="1" aria-label="Seed">
+            <button class="mini" id="seedDice">Shuffle</button>
+          </div>
+
+          <div class="control">
+            <span>Fill probability</span><span class="value" id="probValue">50%</span>
+            <input id="prob" type="range" min="10" max="90" value="50">
+          </div>
+
+          <div class="control">
+            <span>Max depth</span><span class="value" id="depthValue">7</span>
+            <input id="depth" type="range" min="2" max="10" value="7">
+          </div>
+
+          <div class="control">
+            <span>Build animation</span><span class="value" id="speedValue">3.0s</span>
+            <input id="speed" type="range" min="0" max="6" step=".25" value="3">
+          </div>
+        </div>
+
+        <div class="status" id="gridStatus">Ready to generate.</div>
+        <div class="spacer"></div>
+
+        <div class="actions">
+          <button class="action" id="regen">Regenerate</button>
+          <div class="export-row">
+            <button class="action secondary" id="gridJpeg">JPEG</button>
+            <button class="action secondary" id="gridPdf">PDF</button>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="section">
-      <div class="label">Shapes</div>
-      <div class="shape-grid">
-        <button class="shape-btn active" data-shape="ring" aria-label="Ring"><span class="shape-icon ring"></span></button>
-        <button class="shape-btn active" data-shape="circle" aria-label="Circle"><span class="shape-icon circle"></span></button>
-        <button class="shape-btn active" data-shape="diamond" aria-label="Diamond"><span class="shape-icon diamond"></span></button>
-        <button class="shape-btn active" data-shape="square" aria-label="Square"><span class="shape-icon square"></span></button>
-        <button class="shape-btn active" data-shape="cross" aria-label="Cross"><span class="shape-icon cross"></span></button>
-        <button class="shape-btn active" data-shape="triangle" aria-label="Triangle"><span class="shape-icon triangle"></span></button>
+      <!-- ============ GENERATOR 2 ============ -->
+      <div class="panel" data-panel="pack" hidden>
+        <div>
+          <h1>Circle Packing</h1>
+          <div class="intro">Seeded circles grow until they nearly touch a neighbour. New seeds drop into the gaps and grow the same way, until nothing more will fit.</div>
+        </div>
+
+        <div class="group">
+          <div class="group-head">
+            <span class="group-title">Appearance</span>
+            <span class="group-note">live</span>
+          </div>
+
+          <div class="color-row">
+            <label class="color-control"><span>Background</span><input id="packBg" type="color" value="#f4f1ea"></label>
+          </div>
+
+          <div class="seg" id="colorMode">
+            <button data-mode="single" class="active">Single colour</button>
+            <button data-mode="ramp">By size</button>
+          </div>
+
+          <div class="color-row" id="packColorRow">
+            <label class="color-control"><span id="packColorALabel">Circles</span><input id="packColorA" type="color" value="#171717"></label>
+            <label class="color-control" id="packColorBWrap" hidden><span>Smallest</span><input id="packColorB" type="color" value="#e0523f"></label>
+          </div>
+
+          <label class="check"><input id="packOutline" type="checkbox"> Outline only</label>
+        </div>
+
+        <div class="group deferred" id="packSim">
+          <div class="group-head">
+            <span class="group-title">Simulation</span>
+            <span class="group-note" id="packPendingNote">next restart</span>
+          </div>
+
+          <div class="seed-row">
+            <input type="text" id="packSeed" value="1" aria-label="Seed">
+            <button class="mini" id="packDice">Shuffle</button>
+          </div>
+
+          <div class="control">
+            <span>Starting circles</span><span class="value" id="packSeedsValue">12</span>
+            <input id="packSeeds" type="range" min="1" max="200" value="12">
+          </div>
+
+          <div class="control">
+            <span>Gap between circles</span><span class="value" id="packGapValue">2px</span>
+            <input id="packGap" type="range" min="0" max="30" step=".5" value="2">
+          </div>
+
+          <div class="control">
+            <span>Smallest circle</span><span class="value" id="packMinValue">3px</span>
+            <input id="packMin" type="range" min="1" max="40" value="3">
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="group-head">
+            <span class="group-title">Playback</span>
+            <span class="group-note">live</span>
+          </div>
+          <div class="control">
+            <span>Speed</span><span class="value" id="packSpeedValue">1.0&times;</span>
+            <input id="packSpeed" type="range" min="0.1" max="12" step=".1" value="1">
+          </div>
+          <div class="seg">
+            <button id="packPause">Pause</button>
+            <button id="packRestart">Restart</button>
+          </div>
+          <button class="mini" id="packSkip" style="width:100%">Skip to finished</button>
+        </div>
+
+        <div class="status" id="packStatus">Ready.</div>
+        <div class="spacer"></div>
+
+        <div class="actions">
+          <div class="export-row">
+            <button class="action secondary" id="packJpeg">JPEG</button>
+            <button class="action secondary" id="packPdf">PDF</button>
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
 
-    <div class="section">
-      <div class="label">Colour</div>
-      <div class="color-row">
-        <label class="color-control">
-          <span>Background</span>
-          <input id="bgColor" type="color" value="#ffffff">
-        </label>
-        <label class="color-control">
-          <span>Shape</span>
-          <input id="shapeColor" type="color" value="#111111">
-        </label>
-      </div>
-      <label class="check">
-        <input id="cycleBg" type="checkbox">
-        Cycle background by depth
-      </label>
-      <div class="cycle-row" id="cycleColors">
-        <input class="depth-color" type="color" value="#ffffff">
-        <input class="depth-color" type="color" value="#f2efff">
-        <input class="depth-color" type="color" value="#eee8ff">
-        <input class="depth-color" type="color" value="#e9dcff">
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="label">Parameters</div>
-
-      <div class="control">
-        <span>Fill probability</span>
-        <span class="value" id="probValue">50%</span>
-        <input id="prob" type="range" min="10" max="90" value="50" style="grid-column:1/-1">
-      </div>
-
-      <div class="control">
-        <span>Max depth</span>
-        <span class="value" id="depthValue">7</span>
-        <input id="depth" type="range" min="2" max="10" value="7" style="grid-column:1/-1">
-      </div>
-
-      <div class="control">
-        <span>Shape size</span>
-        <span class="value" id="shapeSizeValue">65%</span>
-        <input id="shapeSize" type="range" min="20" max="100" value="65" style="grid-column:1/-1">
-      </div>
-
-      <div class="control">
-        <span>Animation</span>
-        <span class="value" id="speedValue">3.0s</span>
-        <input id="speed" type="range" min="2" max="4" step=".1" value="3" style="grid-column:1/-1">
-      </div>
-
-      <label class="check">
-        <input id="purple" type="checkbox" checked>
-        Show active cell
-      </label>
-    </div>
-
-    <div class="status" id="status">Ready to generate.</div>
-
-    <div class="actions">
-      <button class="action" id="regen">Regenerate</button>
-      <button class="action secondary" id="export">Export JPEG</button>
-    </div>
-  </aside>
-
-  <main>
-    <div class="canvas-wrap">
-      <canvas id="canvas"></canvas>
-    </div>
-  </main>
+    <main>
+      <div class="stage" data-panel="grid"><div class="canvas-wrap"><canvas id="gridCanvas"></canvas></div></div>
+      <div class="stage" data-panel="pack" hidden><div class="canvas-wrap"><canvas id="packCanvas"></canvas></div></div>
+    </main>
+  </div>
 </div>
-
 <script>
 (() => {
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  const regen = document.getElementById('regen');
-  const exportBtn = document.getElementById('export');
-  const status = document.getElementById('status');
-  const prob = document.getElementById('prob');
-  const depth = document.getElementById('depth');
-  const speed = document.getElementById('speed');
-  const probValue = document.getElementById('probValue');
-  const depthValue = document.getElementById('depthValue');
-  const speedValue = document.getElementById('speedValue');
-  const purple = document.getElementById('purple');
-  const bgColor = document.getElementById('bgColor');
-  const shapeColor = document.getElementById('shapeColor');
-  const cycleBg = document.getElementById('cycleBg');
-  const cycleColors = document.getElementById('cycleColors');
-  const shapeSize = document.getElementById('shapeSize');
-  const shapeSizeValue = document.getElementById('shapeSizeValue');
+"use strict";
 
-  let selectedShapes = new Set(['ring','circle','diamond','square','cross','triangle']);
-  let cells = [];
-  let activeCell = null;
-  let animationStart = 0;
-  let duration = 3000;
-  let running = false;
-  let raf = null;
-  let logicalSize = 1000;
+/* ============================================================
+   1. UTILITIES
+   ============================================================ */
 
-  document.querySelectorAll('.shape-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const shape = btn.dataset.shape;
-      if (selectedShapes.has(shape) && selectedShapes.size > 1) {
-        selectedShapes.delete(shape);
-        btn.classList.remove('active');
-      } else {
-        selectedShapes.add(shape);
-        btn.classList.add('active');
+// Deterministic PRNG so a given seed always rebuilds the same artwork.
+// Without this, an export could never be guaranteed to match the screen.
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seedFromString(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const clamp01 = v => clamp(v, 0, 1);
+
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  const n = h.length === 3
+    ? h.split('').map(c => c + c).join('')
+    : h;
+  return [
+    parseInt(n.slice(0, 2), 16) / 255,
+    parseInt(n.slice(2, 4), 16) / 255,
+    parseInt(n.slice(4, 6), 16) / 255
+  ];
+}
+function rgbToCss(rgb) {
+  return 'rgb(' + rgb.map(c => Math.round(clamp01(c) * 255)).join(',') + ')';
+}
+
+/* --- OKLab interpolation: perceptually even ramps, unlike naive sRGB lerp --- */
+const srgbToLinear = c => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const linearToSrgb = c => c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+
+function rgbToOklab(rgb) {
+  const r = srgbToLinear(rgb[0]), g = srgbToLinear(rgb[1]), b = srgbToLinear(rgb[2]);
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [
+    0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+  ];
+}
+function oklabToRgb(lab) {
+  const l_ = lab[0] + 0.3963377774 * lab[1] + 0.2158037573 * lab[2];
+  const m_ = lab[0] - 0.1055613458 * lab[1] - 0.0638541728 * lab[2];
+  const s_ = lab[0] - 0.0894841775 * lab[1] - 1.2914855480 * lab[2];
+  const l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
+  return [
+    clamp01(linearToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s)),
+    clamp01(linearToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s)),
+    clamp01(linearToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s))
+  ];
+}
+function mixOklab(rgbA, rgbB, t) {
+  const a = rgbToOklab(rgbA), b = rgbToOklab(rgbB);
+  return oklabToRgb([
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ]);
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+/* ============================================================
+   2. GEOMETRY MODEL
+   ------------------------------------------------------------
+   One representation for every mark in the app: an array of
+   commands in a unit box spanning [-0.5, 0.5] on both axes.
+       ['M', x, y] ['L', x, y] ['C', x1,y1, x2,y2, x,y] ['Z']
+   Canvas and PDF are two renderers over this, so a shape is
+   never described twice and the two outputs cannot drift.
+   ============================================================ */
+
+const KAPPA = 0.5522847498307936;
+
+function circleCmds(cx, cy, r) {
+  const k = KAPPA * r;
+  return [
+    ['M', cx, cy - r],
+    ['C', cx + k, cy - r, cx + r, cy - k, cx + r, cy],
+    ['C', cx + r, cy + k, cx + k, cy + r, cx, cy + r],
+    ['C', cx - k, cy + r, cx - r, cy + k, cx - r, cy],
+    ['C', cx - r, cy - k, cx - k, cy - r, cx, cy - r],
+    ['Z']
+  ];
+}
+function crossCmds(t) {
+  const h = t / 2, e = 0.5;
+  return [
+    ['M', -h, -e], ['L', h, -e], ['L', h, -h], ['L', e, -h],
+    ['L', e, h], ['L', h, h], ['L', h, e], ['L', -h, e],
+    ['L', -h, h], ['L', -e, h], ['L', -e, -h], ['L', -h, -h], ['Z']
+  ];
+}
+
+// Every built-in shape spans the full unit box, so "shape size 100%"
+// genuinely means "fills the cell" for all of them, not just the round ones.
+const BUILTIN_SHAPES = {
+  ring:     { fillRule: 'evenodd', cmds: circleCmds(0, 0, 0.5).concat(circleCmds(0, 0, 0.27)) },
+  circle:   { fillRule: 'nonzero', cmds: circleCmds(0, 0, 0.5) },
+  diamond:  { fillRule: 'nonzero', cmds: [['M', 0, -0.5], ['L', 0.5, 0], ['L', 0, 0.5], ['L', -0.5, 0], ['Z']] },
+  square:   { fillRule: 'nonzero', cmds: [['M', -0.5, -0.5], ['L', 0.5, -0.5], ['L', 0.5, 0.5], ['L', -0.5, 0.5], ['Z']] },
+  cross:    { fillRule: 'nonzero', cmds: crossCmds(0.34) },
+  triangle: { fillRule: 'nonzero', cmds: [['M', 0, -0.5], ['L', 0.5, 0.5], ['L', -0.5, 0.5], ['Z']] }
+};
+
+/* --- renderer: HTML canvas --- */
+function cmdsToCanvas(ctx, cmds, cx, cy, size) {
+  ctx.beginPath();
+  for (const c of cmds) {
+    switch (c[0]) {
+      case 'M': ctx.moveTo(cx + c[1] * size, cy + c[2] * size); break;
+      case 'L': ctx.lineTo(cx + c[1] * size, cy + c[2] * size); break;
+      case 'C': ctx.bezierCurveTo(
+        cx + c[1] * size, cy + c[2] * size,
+        cx + c[3] * size, cy + c[4] * size,
+        cx + c[5] * size, cy + c[6] * size); break;
+      case 'Z': ctx.closePath(); break;
+    }
+  }
+}
+
+/* --- renderer: SVG path data (used for the sidebar shape thumbnails) --- */
+function cmdsToSvgPath(cmds, cx, cy, size) {
+  const n = v => (Math.round(v * 1000) / 1000);
+  let d = '';
+  for (const c of cmds) {
+    switch (c[0]) {
+      case 'M': d += 'M' + n(cx + c[1] * size) + ' ' + n(cy + c[2] * size); break;
+      case 'L': d += 'L' + n(cx + c[1] * size) + ' ' + n(cy + c[2] * size); break;
+      case 'C': d += 'C' + n(cx + c[1] * size) + ' ' + n(cy + c[2] * size) + ' ' +
+                          n(cx + c[3] * size) + ' ' + n(cy + c[4] * size) + ' ' +
+                          n(cx + c[5] * size) + ' ' + n(cy + c[6] * size); break;
+      case 'Z': d += 'Z'; break;
+    }
+  }
+  return d;
+}
+
+/* ============================================================
+   3. PDF WRITER
+   ------------------------------------------------------------
+   A minimal, dependency-free PDF 1.4 emitter. Everything is a
+   real vector path operator, so the output stays editable in
+   Illustrator and prints at any size.
+   ============================================================ */
+
+const PDF = {
+  num(v) {
+    // PDF rejects exponent notation, so numbers must be plain decimals.
+    const r = Math.round(v * 1000) / 1000;
+    return Object.is(r, -0) ? '0' : String(r);
+  },
+  fill(rgb) { return rgb.map(c => PDF.num(clamp01(c))).join(' ') + ' rg\n'; },
+  stroke(rgb) { return rgb.map(c => PDF.num(clamp01(c))).join(' ') + ' RG\n'; },
+  rect(x, y, w, h) { return [x, y, w, h].map(PDF.num).join(' ') + ' re\n'; },
+
+  path(cmds, cx, cy, size) {
+    let out = '';
+    for (const c of cmds) {
+      switch (c[0]) {
+        case 'M': out += PDF.num(cx + c[1] * size) + ' ' + PDF.num(cy + c[2] * size) + ' m\n'; break;
+        case 'L': out += PDF.num(cx + c[1] * size) + ' ' + PDF.num(cy + c[2] * size) + ' l\n'; break;
+        case 'C': out += PDF.num(cx + c[1] * size) + ' ' + PDF.num(cy + c[2] * size) + ' ' +
+                         PDF.num(cx + c[3] * size) + ' ' + PDF.num(cy + c[4] * size) + ' ' +
+                         PDF.num(cx + c[5] * size) + ' ' + PDF.num(cy + c[6] * size) + ' c\n'; break;
+        case 'Z': out += 'h\n'; break;
       }
+    }
+    return out;
+  },
+
+  circle(cx, cy, r) { return PDF.path(circleCmds(0, 0, 0.5), cx, cy, r * 2); },
+
+  // Assemble a one-page document. `content` uses top-left origin coordinates;
+  // the CTM below flips the y axis so the caller never has to think about it.
+  build(width, height, content, title) {
+    const stream = 'q\n1 0 0 -1 0 ' + PDF.num(height) + ' cm\n' + content + 'Q\n';
+    const objs = [
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PDF.num(width) + ' ' + PDF.num(height) +
+        '] /Contents 4 0 R /Resources << /ProcSet [/PDF] >> >>',
+      '<< /Length ' + stream.length + ' >>\nstream\n' + stream + 'endstream',
+      '<< /Title (' + String(title || 'Pattern').replace(/([\\()])/g, '\\$1') + ') /Producer (Pattern Studio) >>'
+    ];
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [];
+    objs.forEach((body, i) => {
+      offsets.push(pdf.length);
+      pdf += (i + 1) + ' 0 obj\n' + body + '\nendobj\n';
     });
+
+    const xrefAt = pdf.length;
+    pdf += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
+    for (const off of offsets) {
+      pdf += String(off).padStart(10, '0') + ' 00000 n \n';
+    }
+    pdf += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info 5 0 R >>\n' +
+           'startxref\n' + xrefAt + '\n%%EOF\n';
+
+    // Latin-1 keeps one char == one byte, which the xref offsets depend on.
+    const bytes = new Uint8Array(pdf.length);
+    for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 0xff;
+    return new Blob([bytes], { type: 'application/pdf' });
+  }
+};
+
+/* ============================================================
+   4. SVG IMPORT
+   ------------------------------------------------------------
+   Uploaded artwork is flattened into the same command model as
+   the built-in shapes, which is what lets custom shapes export
+   to PDF as true vectors rather than embedded bitmaps.
+   ============================================================ */
+
+const MAT_ID = [1, 0, 0, 1, 0, 0];
+function matMul(m1, m2) {
+  return [
+    m1[0] * m2[0] + m1[2] * m2[1], m1[1] * m2[0] + m1[3] * m2[1],
+    m1[0] * m2[2] + m1[2] * m2[3], m1[1] * m2[2] + m1[3] * m2[3],
+    m1[0] * m2[4] + m1[2] * m2[5] + m1[4], m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+  ];
+}
+const matApply = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+
+function parseTransform(str) {
+  let m = MAT_ID.slice();
+  if (!str) return m;
+  const re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g;
+  let hit;
+  while ((hit = re.exec(str))) {
+    const n = hit[2].split(/[\s,]+/).filter(s => s.length).map(Number);
+    let t = MAT_ID.slice();
+    switch (hit[1]) {
+      case 'matrix': t = n.slice(0, 6); break;
+      case 'translate': t = [1, 0, 0, 1, n[0] || 0, n[1] || 0]; break;
+      case 'scale': t = [n[0] || 0, 0, 0, (n.length > 1 ? n[1] : n[0]) || 0, 0, 0]; break;
+      case 'rotate': {
+        const a = (n[0] || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+        t = [c, s, -s, c, 0, 0];
+        if (n.length > 2) {
+          t = matMul(matMul([1, 0, 0, 1, n[1], n[2]], t), [1, 0, 0, 1, -n[1], -n[2]]);
+        }
+        break;
+      }
+      case 'skewX': t = [1, 0, Math.tan((n[0] || 0) * Math.PI / 180), 1, 0, 0]; break;
+      case 'skewY': t = [1, Math.tan((n[0] || 0) * Math.PI / 180), 0, 1, 0, 0]; break;
+    }
+    m = matMul(m, t);
+  }
+  return m;
+}
+
+// Endpoint-parameterised elliptical arc -> cubic Béziers (SVG spec F.6.5).
+function arcToCubics(x0, y0, rx, ry, xRot, largeArc, sweep, x, y) {
+  if (!rx || !ry) return [['L', x, y]];
+  rx = Math.abs(rx); ry = Math.abs(ry);
+  const phi = xRot * Math.PI / 180, cosP = Math.cos(phi), sinP = Math.sin(phi);
+  const dx2 = (x0 - x) / 2, dy2 = (y0 - y) / 2;
+  const x1p = cosP * dx2 + sinP * dy2;
+  const y1p = -sinP * dx2 + cosP * dy2;
+
+  const lam = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  if (lam > 1) { const s = Math.sqrt(lam); rx *= s; ry *= s; }
+
+  const sign = (largeArc !== sweep) ? 1 : -1;
+  const num = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+  const den = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const co = sign * Math.sqrt(Math.max(0, num / den));
+  const cxp = co * rx * y1p / ry, cyp = -co * ry * x1p / rx;
+  const cx = cosP * cxp - sinP * cyp + (x0 + x) / 2;
+  const cy = sinP * cxp + cosP * cyp + (y0 + y) / 2;
+
+  const angle = (ux, uy, vx, vy) => {
+    const len = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+    let a = Math.acos(clamp((ux * vx + uy * vy) / (len || 1), -1, 1));
+    if (ux * vy - uy * vx < 0) a = -a;
+    return a;
+  };
+  const ux = (x1p - cxp) / rx, uy = (y1p - cyp) / ry;
+  const vx = (-x1p - cxp) / rx, vy = (-y1p - cyp) / ry;
+  let theta = angle(1, 0, ux, uy);
+  let delta = angle(ux, uy, vx, vy);
+  if (!sweep && delta > 0) delta -= 2 * Math.PI;
+  else if (sweep && delta < 0) delta += 2 * Math.PI;
+
+  const segs = Math.max(1, Math.ceil(Math.abs(delta / (Math.PI / 2))));
+  const step = delta / segs;
+  const k = 4 / 3 * Math.tan(step / 4);
+  const out = [];
+  let px = x0, py = y0;
+  for (let i = 0; i < segs; i++) {
+    const t2 = theta + step;
+    const c1 = Math.cos(theta), s1 = Math.sin(theta);
+    const c2 = Math.cos(t2), s2 = Math.sin(t2);
+    const ex = cosP * rx * c2 - sinP * ry * s2 + cx;
+    const ey = sinP * rx * c2 + cosP * ry * s2 + cy;
+    const d1x = cosP * (-rx * s1) - sinP * (ry * c1);
+    const d1y = sinP * (-rx * s1) + cosP * (ry * c1);
+    const d2x = cosP * (-rx * s2) - sinP * (ry * c2);
+    const d2y = sinP * (-rx * s2) + cosP * (ry * c2);
+    out.push(['C', px + k * d1x, py + k * d1y, ex - k * d2x, ey - k * d2y, ex, ey]);
+    px = ex; py = ey; theta = t2;
+  }
+  return out;
+}
+
+function parsePathData(d) {
+  const tokens = d.match(/[a-df-zA-DF-Z]|[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?/g) || [];
+  const cmds = [];
+  let i = 0, cx = 0, cy = 0, sx = 0, sy = 0, cmd = '', prev = '';
+  let lastCx = 0, lastCy = 0;
+  const num = () => parseFloat(tokens[i++]);
+
+  while (i < tokens.length) {
+    if (/[a-zA-Z]/.test(tokens[i])) { cmd = tokens[i++]; }
+    else if (cmd === 'M') cmd = 'L';
+    else if (cmd === 'm') cmd = 'l';
+    if (!cmd) break;
+
+    const rel = cmd === cmd.toLowerCase();
+    const ox = rel ? cx : 0, oy = rel ? cy : 0;
+    const up = cmd.toUpperCase();
+
+    switch (up) {
+      case 'M': cx = num() + ox; cy = num() + oy; sx = cx; sy = cy; cmds.push(['M', cx, cy]); break;
+      case 'L': cx = num() + ox; cy = num() + oy; cmds.push(['L', cx, cy]); break;
+      case 'H': cx = num() + ox; cmds.push(['L', cx, cy]); break;
+      case 'V': cy = num() + oy; cmds.push(['L', cx, cy]); break;
+      case 'C': {
+        const a = num() + ox, b = num() + oy, c = num() + ox, dd = num() + oy;
+        cx = num() + ox; cy = num() + oy;
+        lastCx = c; lastCy = dd;
+        cmds.push(['C', a, b, c, dd, cx, cy]);
+        break;
+      }
+      case 'S': {
+        const rx = /[CS]/.test(prev.toUpperCase()) ? 2 * cx - lastCx : cx;
+        const ry = /[CS]/.test(prev.toUpperCase()) ? 2 * cy - lastCy : cy;
+        const c = num() + ox, dd = num() + oy;
+        cx = num() + ox; cy = num() + oy;
+        lastCx = c; lastCy = dd;
+        cmds.push(['C', rx, ry, c, dd, cx, cy]);
+        break;
+      }
+      case 'Q': {
+        const qx = num() + ox, qy = num() + oy;
+        const ex = num() + ox, ey = num() + oy;
+        cmds.push(['C', cx + 2 / 3 * (qx - cx), cy + 2 / 3 * (qy - cy),
+                        ex + 2 / 3 * (qx - ex), ey + 2 / 3 * (qy - ey), ex, ey]);
+        lastCx = qx; lastCy = qy; cx = ex; cy = ey;
+        break;
+      }
+      case 'T': {
+        const qx = /[QT]/.test(prev.toUpperCase()) ? 2 * cx - lastCx : cx;
+        const qy = /[QT]/.test(prev.toUpperCase()) ? 2 * cy - lastCy : cy;
+        const ex = num() + ox, ey = num() + oy;
+        cmds.push(['C', cx + 2 / 3 * (qx - cx), cy + 2 / 3 * (qy - cy),
+                        ex + 2 / 3 * (qx - ex), ey + 2 / 3 * (qy - ey), ex, ey]);
+        lastCx = qx; lastCy = qy; cx = ex; cy = ey;
+        break;
+      }
+      case 'A': {
+        const rx = num(), ry = num(), rot = num(), la = num(), sw = num();
+        const ex = num() + ox, ey = num() + oy;
+        for (const seg of arcToCubics(cx, cy, rx, ry, rot, !!la, !!sw, ex, ey)) cmds.push(seg);
+        cx = ex; cy = ey;
+        break;
+      }
+      case 'Z': cmds.push(['Z']); cx = sx; cy = sy; break;
+      default: i++; break;
+    }
+    prev = cmd;
+  }
+  return cmds;
+}
+
+function pointsToCmds(pointsAttr, close) {
+  const n = (pointsAttr || '').split(/[\s,]+/).filter(s => s.length).map(Number);
+  const out = [];
+  for (let i = 0; i + 1 < n.length; i += 2) {
+    out.push([i === 0 ? 'M' : 'L', n[i], n[i + 1]]);
+  }
+  if (close && out.length) out.push(['Z']);
+  return out;
+}
+
+function roundedRectCmds(x, y, w, h, rx, ry) {
+  rx = clamp(rx, 0, w / 2); ry = clamp(ry, 0, h / 2);
+  if (!rx && !ry) {
+    return [['M', x, y], ['L', x + w, y], ['L', x + w, y + h], ['L', x, y + h], ['Z']];
+  }
+  const kx = KAPPA * rx, ky = KAPPA * ry;
+  return [
+    ['M', x + rx, y],
+    ['L', x + w - rx, y],
+    ['C', x + w - rx + kx, y, x + w, y + ry - ky, x + w, y + ry],
+    ['L', x + w, y + h - ry],
+    ['C', x + w, y + h - ry + ky, x + w - rx + kx, y + h, x + w - rx, y + h],
+    ['L', x + rx, y + h],
+    ['C', x + rx - kx, y + h, x, y + h - ry + ky, x, y + h - ry],
+    ['L', x, y + ry],
+    ['C', x, y + ry - ky, x + rx - kx, y, x + rx, y],
+    ['Z']
+  ];
+}
+
+const SKIP_TAGS = new Set(['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern', 'filter', 'style', 'title', 'desc', 'metadata']);
+
+function elementToCmds(el) {
+  const f = name => parseFloat(el.getAttribute(name) || 0) || 0;
+  switch (el.tagName.toLowerCase()) {
+    case 'path': return parsePathData(el.getAttribute('d') || '');
+    case 'rect': {
+      const w = f('width'), h = f('height');
+      if (w <= 0 || h <= 0) return [];
+      const hasRx = el.hasAttribute('rx'), hasRy = el.hasAttribute('ry');
+      const rx = hasRx ? f('rx') : (hasRy ? f('ry') : 0);
+      const ry = hasRy ? f('ry') : rx;
+      return roundedRectCmds(f('x'), f('y'), w, h, rx, ry);
+    }
+    case 'circle': {
+      const r = f('r');
+      return r > 0 ? circleCmds(f('cx'), f('cy'), r) : [];
+    }
+    case 'ellipse': {
+      const rx = f('rx'), ry = f('ry');
+      if (rx <= 0 || ry <= 0) return [];
+      // Unit circle scaled per-axis, expressed directly as cubics.
+      return circleCmds(0, 0, 1).map(c => {
+        if (c[0] === 'Z') return c;
+        const o = [c[0]];
+        for (let i = 1; i < c.length; i += 2) {
+          o.push(f('cx') + c[i] * rx, f('cy') + c[i + 1] * ry);
+        }
+        return o;
+      });
+    }
+    case 'polygon': return pointsToCmds(el.getAttribute('points'), true);
+    case 'polyline': return pointsToCmds(el.getAttribute('points'), false);
+    case 'line': return [['M', f('x1'), f('y1')], ['L', f('x2'), f('y2')]];
+    default: return [];
+  }
+}
+
+function transformCmds(cmds, m) {
+  return cmds.map(c => {
+    if (c[0] === 'Z') return c;
+    const o = [c[0]];
+    for (let i = 1; i < c.length; i += 2) {
+      const p = matApply(m, c[i], c[i + 1]);
+      o.push(p[0], p[1]);
+    }
+    return o;
+  });
+}
+
+function cmdsBounds(cmds) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of cmds) {
+    for (let i = 1; i < c.length; i += 2) {
+      // Control points overstate the hull slightly; close enough for framing
+      // and it never clips the artwork.
+      if (c[i] < x0) x0 = c[i];
+      if (c[i] > x1) x1 = c[i];
+      if (c[i + 1] < y0) y0 = c[i + 1];
+      if (c[i + 1] > y1) y1 = c[i + 1];
+    }
+  }
+  return isFinite(x0) ? { x0, y0, x1, y1 } : null;
+}
+
+const sandbox = document.getElementById('svgSandbox');
+
+// Returns { cmds, fillRule } normalised into the unit box, or null.
+function importSvg(text) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) throw new Error('Not valid SVG');
+  const root = doc.documentElement;
+  if (!root || root.tagName.toLowerCase() !== 'svg') throw new Error('No <svg> root');
+
+  // Strip anything executable before the markup is attached to the document.
+  root.querySelectorAll('script, foreignObject, image').forEach(n => n.remove());
+  root.querySelectorAll('*').forEach(n => {
+    for (const attr of [...n.attributes]) {
+      // Drop event handlers and every link target; <a> itself is kept and
+      // descended into so linked artwork is not silently lost.
+      if (/^on/i.test(attr.name) || attr.localName === 'href') n.removeAttribute(attr.name);
+    }
   });
 
-  prob.addEventListener('input', () => probValue.textContent = prob.value + '%');
-  depth.addEventListener('input', () => depthValue.textContent = depth.value);
-  speed.addEventListener('input', () => {
-    speedValue.textContent = Number(speed.value).toFixed(1) + 's';
-    if (!running) duration = Number(speed.value) * 1000;
-  });
+  // Attach so getComputedStyle can resolve class-based fills, which is how
+  // Illustrator writes them (and how `fill: none` guide shapes get excluded).
+  sandbox.textContent = '';
+  const live = document.importNode(root, true);
+  live.removeAttribute('width');
+  live.removeAttribute('height');
+  sandbox.appendChild(live);
 
-  shapeSize.addEventListener('input', () => {
-    shapeSizeValue.textContent = shapeSize.value + '%';
+  let evenOdd = false;
+  const collected = [];
+  const skipped = [];
+
+  (function walk(node, matrix) {
+    for (const child of node.children) {
+      const tag = child.tagName.toLowerCase();
+      if (SKIP_TAGS.has(tag)) continue;
+
+      const m = matMul(matrix, parseTransform(child.getAttribute('transform')));
+      if (tag === 'g' || tag === 'svg' || tag === 'a' || tag === 'switch') { walk(child, m); continue; }
+
+      let cmds = elementToCmds(child);
+      if (!cmds.length) continue;
+
+      const style = getComputedStyle(child);
+      if (style.fillRule === 'evenodd' || child.getAttribute('fill-rule') === 'evenodd') evenOdd = true;
+
+      const unfilled = style.fill === 'none' || child.getAttribute('fill') === 'none';
+      const bucket = unfilled ? skipped : collected;
+      bucket.push(...transformCmds(cmds, m));
+    }
+  })(live, MAT_ID.slice());
+
+  // Stroke-only artwork would otherwise import as nothing at all.
+  let cmds = collected.length ? collected : skipped;
+  sandbox.textContent = '';
+  if (!cmds.length) throw new Error('No drawable shapes found');
+
+  // Normalise on the artwork's own bounds rather than the viewBox, so every
+  // imported shape fills its cell as completely as the built-ins do.
+  const b = cmdsBounds(cmds);
+  const w = b.x1 - b.x0, h = b.y1 - b.y0;
+  const span = Math.max(w, h);
+  if (!(span > 0)) throw new Error('Shape has no area');
+  const s = 1 / span;
+  const ox = -(b.x0 + w / 2), oy = -(b.y0 + h / 2);
+
+  return {
+    fillRule: evenOdd ? 'evenodd' : 'nonzero',
+    cmds: cmds.map(c => {
+      if (c[0] === 'Z') return c;
+      const o = [c[0]];
+      for (let i = 1; i < c.length; i += 2) o.push((c[i] + ox) * s, (c[i + 1] + oy) * s);
+      return o;
+    })
+  };
+}
+
+/* ============================================================
+   5. GENERATOR 1 — RECURSIVE GRID
+   ============================================================ */
+
+const Grid = (() => {
+  const canvas = document.getElementById('gridCanvas');
+  const ctx = canvas.getContext('2d');
+  const el = id => document.getElementById(id);
+
+  const shapeGrid = el('shapeGrid'), svgUpload = el('svgUpload');
+  const bgColor = el('bgColor'), shapeColor = el('shapeColor');
+  const cycleBg = el('cycleBg'), cycleColors = el('cycleColors');
+  const shapeSize = el('shapeSize'), shapeSizeValue = el('shapeSizeValue');
+  const showActive = el('showActive');
+  const seedInput = el('seed'), seedDice = el('seedDice');
+  const prob = el('prob'), probValue = el('probValue');
+  const depth = el('depth'), depthValue = el('depthValue');
+  const speed = el('speed'), speedValue = el('speedValue');
+  const structure = el('gridStructure'), pendingNote = el('gridPendingNote');
+  const regen = el('regen'), status = el('gridStatus');
+
+  const CELL_BUDGET = 25000;   // guards against the low-probability / high-depth blowup
+  const STORE_KEY = 'patternStudio.customShapes';
+
+  let library = Object.assign({}, BUILTIN_SHAPES);   // id -> {cmds, fillRule}
+  let custom = {};                                   // id -> {cmds, fillRule, name}
+  let selected = new Set(Object.keys(BUILTIN_SHAPES));
+  let cells = [], activeCell = null, capped = false;
+  let running = false, raf = null, animStart = 0, duration = 3000;
+  let logicalSize = 1000;
+  let pending = false;
+
+  /* ---- persistence for uploaded shapes ---- */
+  function loadCustom() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) custom = JSON.parse(raw) || {};
+    } catch (e) { custom = {}; }
+  }
+  function saveCustom() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(custom)); }
+    catch (e) { /* quota or private mode: shapes still work this session */ }
+  }
+
+  /* ---- shape picker ---- */
+  function rebuildLibrary() {
+    library = Object.assign({}, BUILTIN_SHAPES, custom);
+    for (const id of [...selected]) if (!library[id]) selected.delete(id);
+    if (!selected.size) selected.add('circle');
+  }
+
+  function thumb(def) {
+    const d = cmdsToSvgPath(def.cmds, 0, 0, 1);
+    return '<svg viewBox="-0.55 -0.55 1.1 1.1" aria-hidden="true">' +
+           '<path d="' + d + '" fill-rule="' + def.fillRule + '"/></svg>';
+  }
+
+  function renderShapePicker() {
+    rebuildLibrary();
+    shapeGrid.innerHTML = '';
+    for (const [id, def] of Object.entries(library)) {
+      const btn = document.createElement('button');
+      btn.className = 'shape-btn' + (selected.has(id) ? ' active' : '');
+      btn.dataset.shape = id;
+      btn.title = def.name || id;
+      btn.setAttribute('aria-label', def.name || id);
+      btn.setAttribute('aria-pressed', selected.has(id) ? 'true' : 'false');
+      btn.innerHTML = thumb(def);
+
+      if (custom[id]) {
+        const kill = document.createElement('span');
+        kill.className = 'kill';
+        kill.textContent = '×';
+        kill.title = 'Remove shape';
+        kill.setAttribute('role', 'button');
+        kill.addEventListener('click', ev => {
+          ev.stopPropagation();
+          delete custom[id];
+          selected.delete(id);
+          saveCustom();
+          renderShapePicker();
+          draw();
+        });
+        btn.appendChild(kill);
+      }
+
+      btn.addEventListener('click', () => {
+        if (selected.has(id) && selected.size > 1) selected.delete(id);
+        else selected.add(id);
+        renderShapePicker();
+        draw();   // shape choice is live: cells keep their roll, only the mapping changes
+      });
+      shapeGrid.appendChild(btn);
+    }
+  }
+
+  svgUpload.addEventListener('change', async () => {
+    const files = [...svgUpload.files];
+    svgUpload.value = '';
+    if (!files.length) return;
+    let added = 0;
+    const errors = [];
+    for (const file of files) {
+      try {
+        const def = importSvg(await file.text());
+        const id = 'svg:' + file.name.replace(/\.svg$/i, '') + ':' + Date.now().toString(36) + added;
+        def.name = file.name.replace(/\.svg$/i, '');
+        custom[id] = def;
+        selected.add(id);
+        added++;
+      } catch (e) {
+        errors.push(file.name + ' — ' + e.message);
+      }
+    }
+    saveCustom();
+    renderShapePicker();
     draw();
+    status.innerHTML = (added ? 'Added ' + added + ' shape' + (added > 1 ? 's' : '') + '. ' : '') +
+      (errors.length ? '<span class="warn">Skipped: ' + errors.join('; ') + '</span>' : '');
   });
 
-  cycleBg.addEventListener('change', () => {
-    cycleColors.classList.toggle('enabled', cycleBg.checked);
-    draw();
-  });
+  /* ---- structure: build the tree ---- */
+  function markPending() {
+    pending = true;
+    structure.classList.add('pending');
+    pendingNote.textContent = 'press regenerate';
+    regen.classList.add('hot');
+  }
+  function clearPending() {
+    pending = false;
+    structure.classList.remove('pending');
+    pendingNote.textContent = 'next regenerate';
+    regen.classList.remove('hot');
+  }
 
-  [bgColor, shapeColor, ...document.querySelectorAll('.depth-color')].forEach(input => {
-    input.addEventListener('input', draw);
-  });
+  function buildTree() {
+    const rng = mulberry32(seedFromString(seedInput.value.trim() || '1'));
+    const maxDepth = Number(depth.value);
+    const fillP = Number(prob.value) / 100;
+    const result = [];
+    capped = false;
+
+    let frontier = [
+      { x: 0, y: 0, size: 0.5, depth: 1 }, { x: 0.5, y: 0, size: 0.5, depth: 1 },
+      { x: 0, y: 0.5, size: 0.5, depth: 1 }, { x: 0.5, y: 0.5, size: 0.5, depth: 1 }
+    ];
+
+    while (frontier.length) {
+      const next = [];
+      for (const parent of frontier) {
+        const cell = {
+          x: parent.x, y: parent.y, size: parent.size, depth: parent.depth,
+          filled: false, roll: rng(), visible: false, generation: parent.depth
+        };
+        result.push(cell);
+
+        // Force a fill at max depth, and again if the tree is about to explode:
+        // at 10% fill probability the branching factor is 3.6, which reaches
+        // half a million cells by depth 10 and locks the tab up.
+        const overBudget = result.length + next.length * 4 > CELL_BUDGET;
+        if (overBudget) capped = true;
+
+        if (parent.depth >= maxDepth || overBudget || rng() < fillP) {
+          cell.filled = true;
+        } else {
+          const half = parent.size / 2, d = parent.depth + 1;
+          next.push({ x: parent.x, y: parent.y, size: half, depth: d });
+          next.push({ x: parent.x + half, y: parent.y, size: half, depth: d });
+          next.push({ x: parent.x, y: parent.y + half, size: half, depth: d });
+          next.push({ x: parent.x + half, y: parent.y + half, size: half, depth: d });
+        }
+      }
+      frontier = next;
+    }
+    return result;
+  }
+
+  const shapeOf = (cell, ids) => library[ids[Math.floor(cell.roll * ids.length) % ids.length]];
+
+  /* ---- rendering: one description of the scene, three outputs ---- */
+  function eachBackground(fn) {
+    if (!cycleBg.checked) return;
+    const palette = [...cycleColors.querySelectorAll('.depth-color')];
+    if (!palette.length) return;
+    // Painted in generation order so deeper cells sit on top of shallower ones.
+    for (const cell of cells) {
+      if (!cell.visible) continue;
+      fn(cell, palette[(cell.depth - 1) % palette.length].value);
+    }
+  }
+  function eachMark(fn) {
+    const factor = Number(shapeSize.value) / 100;
+    const ids = [...selected];
+    if (!ids.length) return;
+    for (const cell of cells) {
+      if (!cell.visible || !cell.filled) continue;
+      const def = shapeOf(cell, ids);
+      if (!def) continue;
+      fn(def, cell.x + cell.size / 2, cell.y + cell.size / 2, cell.size * factor);
+    }
+  }
+
+  function paintCanvas(c, S) {
+    c.fillStyle = bgColor.value;
+    c.fillRect(0, 0, S, S);
+    eachBackground((cell, color) => {
+      c.fillStyle = color;
+      c.fillRect(cell.x * S, cell.y * S, cell.size * S, cell.size * S);
+    });
+    c.fillStyle = shapeColor.value;
+    eachMark((def, cx, cy, size) => {
+      cmdsToCanvas(c, def.cmds, cx * S, cy * S, size * S);
+      c.fill(def.fillRule);
+    });
+  }
+
+  function draw() {
+    paintCanvas(ctx, logicalSize);
+    if (running && activeCell && showActive.checked) {
+      const lw = Math.max(2, logicalSize * 0.005);
+      ctx.save();
+      ctx.strokeStyle = '#9b5cff';
+      ctx.lineWidth = lw;
+      ctx.strokeRect(activeCell.x * logicalSize + lw / 2, activeCell.y * logicalSize + lw / 2,
+                     activeCell.size * logicalSize - lw, activeCell.size * logicalSize - lw);
+      ctx.restore();
+    }
+  }
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
     canvas.width = Math.round(rect.width * dpr);
     canvas.height = Math.round(rect.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     logicalSize = rect.width;
     draw();
   }
-  window.addEventListener('resize', resize);
 
-  // The zero state is ALWAYS four equal squares (2×2).
-  // Each generation evaluates all currently-empty cells. Every blank cell
-  // becomes a new 2×2 group in the following generation.
-  function buildTree() {
-    const result = [];
-    const maxDepth = Number(depth.value);
-    const fillP = Number(prob.value) / 100;
-    const shapes = [...selectedShapes];
-
-    let frontier = [
-      { x: 0, y: 0, size: 0.5, depth: 1 },
-      { x: 0.5, y: 0, size: 0.5, depth: 1 },
-      { x: 0, y: 0.5, size: 0.5, depth: 1 },
-      { x: 0.5, y: 0.5, size: 0.5, depth: 1 }
-    ];
-
-    // Every frontier is one complete generation.
-    while (frontier.length) {
-      const next = [];
-
-      for (const parent of frontier) {
-        const cell = {
-          x: parent.x,
-          y: parent.y,
-          size: parent.size,
-          depth: parent.depth,
-          filled: false,
-          shape: null,
-          visible: false,
-          generation: parent.depth
-        };
-
-        result.push(cell);
-
-        // At the maximum depth, a cell must be filled.
-        if (parent.depth >= maxDepth || Math.random() < fillP) {
-          cell.filled = true;
-          cell.shape = shapes[Math.floor(Math.random() * shapes.length)];
-        } else {
-          // Blank cells are subdivided into FOUR new squares.
-          const half = parent.size / 2;
-          const d = parent.depth + 1;
-
-          next.push({ x: parent.x,        y: parent.y,        size: half, depth: d });
-          next.push({ x: parent.x + half, y: parent.y,        size: half, depth: d });
-          next.push({ x: parent.x,        y: parent.y + half, size: half, depth: d });
-          next.push({ x: parent.x + half, y: parent.y + half, size: half, depth: d });
-        }
-      }
-
-      frontier = next;
-    }
-
-    return result;
-  }
-
-  function drawShape(cell, alpha = 1) {
-    const x = cell.x * logicalSize;
-    const y = cell.y * logicalSize;
-    const s = cell.size * logicalSize;
-    const cx = x + s / 2;
-    const cy = y + s / 2;
-    const sizeFactor = Number(shapeSize.value) / 100;
-    const r = Math.max(1, (s / 2) * sizeFactor);
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = shapeColor.value;
-    ctx.strokeStyle = shapeColor.value;
-    ctx.lineWidth = Math.max(1, s * .035);
-
-    switch (cell.shape) {
-      case 'ring':
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.arc(cx, cy, r * .52, 0, Math.PI * 2, true);
-        ctx.fill('evenodd');
-        break;
-
-      case 'circle':
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-        break;
-
-      case 'diamond':
-        ctx.beginPath();
-        ctx.moveTo(cx, cy-r);
-        ctx.lineTo(cx+r, cy);
-        ctx.lineTo(cx, cy+r);
-        ctx.lineTo(cx-r, cy);
-        ctx.closePath();
-        ctx.fill();
-        break;
-
-      case 'square':
-        const q = r * 1.45;
-        ctx.fillRect(cx-q/2, cy-q/2, q, q);
-        break;
-
-      case 'cross':
-        const t = r * .58;
-        const arm = r * 1.55;
-        ctx.fillRect(cx-t/2, cy-arm/2, t, arm);
-        ctx.fillRect(cx-arm/2, cy-t/2, arm, t);
-        break;
-
-      case 'triangle':
-        ctx.beginPath();
-        ctx.moveTo(cx, cy-r);
-        ctx.lineTo(cx+r*.95, cy+r*.75);
-        ctx.lineTo(cx-r*.95, cy+r*.75);
-        ctx.closePath();
-        ctx.fill();
-        break;
-    }
-    ctx.restore();
-  }
-
-  function drawGridCell(cell, stroke, lineWidth = 1) {
-    const x = cell.x * logicalSize;
-    const y = cell.y * logicalSize;
-    const s = cell.size * logicalSize;
-    ctx.save();
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = lineWidth;
-    ctx.strokeRect(x + lineWidth/2, y + lineWidth/2, s-lineWidth, s-lineWidth);
-    ctx.restore();
-  }
-
-  function draw() {
-    // Background can either stay constant or cycle through a small palette
-    // according to recursion depth.
-    ctx.fillStyle = bgColor.value;
-    ctx.fillRect(0, 0, logicalSize, logicalSize);
-
-    if (!cells.length) return;
-
-    if (cycleBg.checked) {
-      const palette = [...document.querySelectorAll('.depth-color')];
-      for (const cell of cells) {
-        if (!cell.visible) continue;
-        const c = palette[(cell.depth - 1) % palette.length];
-        if (!c) continue;
-        const x = cell.x * logicalSize;
-        const y = cell.y * logicalSize;
-        const s = cell.size * logicalSize;
-        ctx.fillStyle = c.value;
-        ctx.fillRect(x, y, s, s);
-      }
-    }
-
-    // Draw all cells whose decision has been reached.
-    for (const cell of cells) {
-      if (cell.visible && cell.filled) drawShape(cell);
-    }
-
-    if (running && activeCell && purple.checked) {
-      drawGridCell(activeCell, '#9b5cff', Math.max(2, logicalSize * .005));
-    }
+  /* ---- generate + build animation ---- */
+  function finish(generationCount) {
+    cells.forEach(c => c.visible = true);
+    activeCell = null;
+    running = false;
+    regen.textContent = 'Regenerate';
+    status.innerHTML = 'Complete · ' + cells.filter(c => c.filled).length + ' shapes · ' +
+      generationCount + ' generations' +
+      (capped ? '<br><span class="warn">Cell budget reached — deepest cells were force-filled. Raise fill probability or lower max depth for a full tree.</span>' : '');
+    draw();
   }
 
   function generate() {
-    if (running) return;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    running = false;
+    clearPending();
 
     cells = buildTree();
-    duration = Number(speed.value) * 1000;
-    animationStart = performance.now();
-    running = true;
-    activeCell = null;
-    regen.disabled = true;
-    exportBtn.disabled = true;
-
-    // Group cells by generation. The first generation contains exactly 4 cells.
     const generations = [];
     for (const cell of cells) {
-      if (!generations[cell.generation - 1]) generations[cell.generation - 1] = [];
-      generations[cell.generation - 1].push(cell);
+      (generations[cell.generation - 1] ||= []).push(cell);
     }
-
     cells.forEach(c => c.visible = false);
 
-    const generationCount = generations.length;
-    const stepTime = duration / Math.max(1, generationCount);
-    let currentGeneration = -1;
+    duration = Number(speed.value) * 1000;
+    if (duration <= 0) { finish(generations.length); return; }
+
+    running = true;
+    activeCell = null;
+    regen.textContent = 'Restart build';
+    animStart = performance.now();
+
+    const genCount = generations.length;
+    const stepTime = duration / Math.max(1, genCount);
 
     function tick(now) {
-      const elapsed = now - animationStart;
-      const genFloat = Math.min(generationCount, elapsed / stepTime);
-      const genIndex = Math.min(generationCount - 1, Math.floor(genFloat));
+      const elapsed = now - animStart;
+      const genFloat = Math.min(genCount, elapsed / stepTime);
+      const genIndex = Math.min(genCount - 1, Math.floor(genFloat));
 
-      // Reveal one generation at a time, and briefly highlight every cell
-      // in that generation in sequence.
-      for (let g = 0; g < genIndex; g++) {
-        generations[g].forEach(c => c.visible = true);
-      }
+      for (let g = 0; g < genIndex; g++) generations[g].forEach(c => c.visible = true);
 
-      if (genIndex >= 0 && genIndex < generationCount) {
+      if (genIndex >= 0) {
         const within = Math.min(0.999, genFloat - genIndex);
         const group = generations[genIndex];
         const activeIndex = Math.min(group.length - 1, Math.floor(within * group.length));
-
         for (let i = 0; i < activeIndex; i++) group[i].visible = true;
         activeCell = group[activeIndex] || null;
-
-        status.textContent =
-          `Generation ${genIndex + 1} of ${generationCount} · ` +
-          `${group.length} cells`;
+        status.textContent = 'Generation ' + (genIndex + 1) + ' of ' + genCount + ' · ' + group.length + ' cells';
       }
 
       draw();
-
-      if (elapsed < duration) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        cells.forEach(c => c.visible = true);
-        activeCell = null;
-        running = false;
-        regen.disabled = false;
-        exportBtn.disabled = false;
-        status.textContent =
-          `Complete · ${cells.filter(c => c.filled).length} shapes · ` +
-          `${generationCount} generations`;
-        draw();
-      }
+      if (elapsed < duration) raf = requestAnimationFrame(tick);
+      else finish(genCount);
     }
-
     raf = requestAnimationFrame(tick);
   }
 
-  exportBtn.addEventListener('click', () => {
-    if (running) return;
-
-    // Export at a clean 1600 × 1600 resolution.
+  /* ---- exports ---- */
+  function exportJpeg() {
+    const S = 2400;
     const out = document.createElement('canvas');
-    out.width = 1600;
-    out.height = 1600;
+    out.width = out.height = S;
     const octx = out.getContext('2d');
+    octx.fillStyle = '#fff';
+    octx.fillRect(0, 0, S, S);
+    paintCanvas(octx, S);          // identical code path to the screen
+    out.toBlob(b => download(b, 'recursive-grid-' + stamp() + '.jpg'), 'image/jpeg', 0.95);
+  }
 
-    octx.fillStyle = bgColor.value;
-    octx.fillRect(0, 0, 1600, 1600);
+  function exportPdf() {
+    const S = 1000;                // points; vector, so it scales to any print size
+    let content = PDF.fill(hexToRgb(bgColor.value)) + PDF.rect(0, 0, S, S) + 'f\n';
 
-    if (cycleBg.checked) {
-      const palette = [...document.querySelectorAll('.depth-color')];
-      for (const cell of cells) {
-        if (!cell.filled) {
-          const c = palette[(cell.depth - 1) % palette.length];
-          if (!c) continue;
-          octx.fillStyle = c.value;
-          octx.fillRect(cell.x * 1600, cell.y * 1600, cell.size * 1600, cell.size * 1600);
-        }
-      }
-    }
+    eachBackground((cell, color) => {
+      content += PDF.fill(hexToRgb(color)) +
+                 PDF.rect(cell.x * S, cell.y * S, cell.size * S, cell.size * S) + 'f\n';
+    });
 
-    const scale = 1600;
-    for (const cell of cells) {
-      if (!cell.filled) continue;
+    content += PDF.fill(hexToRgb(shapeColor.value));
+    eachMark((def, cx, cy, size) => {
+      content += PDF.path(def.cmds, cx * S, cy * S, size * S) + (def.fillRule === 'evenodd' ? 'f*\n' : 'f\n');
+    });
 
-      const x = cell.x * scale;
-      const y = cell.y * scale;
-      const s = cell.size * scale;
-      const cx = x + s/2;
-      const cy = y + s/2;
-      const r = Math.max(1, (s/2) * (Number(shapeSize.value) / 100));
+    download(PDF.build(S, S, content, 'Recursive Grid'), 'recursive-grid-' + stamp() + '.pdf');
+  }
 
-      octx.save();
-      octx.fillStyle = shapeColor.value;
-      octx.strokeStyle = '#111';
+  /* ---- wiring ---- */
+  const live = fn => () => { fn && fn(); draw(); };
 
-      switch (cell.shape) {
-        case 'ring':
-          octx.beginPath();
-          octx.arc(cx,cy,r,0,Math.PI*2);
-          octx.arc(cx,cy,r*.52,0,Math.PI*2,true);
-          octx.fill('evenodd');
-          break;
-        case 'circle':
-          octx.beginPath();
-          octx.arc(cx,cy,r,0,Math.PI*2);
-          octx.fill();
-          break;
-        case 'diamond':
-          octx.beginPath();
-          octx.moveTo(cx,cy-r);
-          octx.lineTo(cx+r,cy);
-          octx.lineTo(cx,cy+r);
-          octx.lineTo(cx-r,cy);
-          octx.closePath();
-          octx.fill();
-          break;
-        case 'square':
-          const q=r*1.45;
-          octx.fillRect(cx-q/2,cy-q/2,q,q);
-          break;
-        case 'cross':
-          const tt=r*.58, arm=r*1.55;
-          octx.fillRect(cx-tt/2,cy-arm/2,tt,arm);
-          octx.fillRect(cx-arm/2,cy-tt/2,arm,tt);
-          break;
-        case 'triangle':
-          octx.beginPath();
-          octx.moveTo(cx,cy-r);
-          octx.lineTo(cx+r*.95,cy+r*.75);
-          octx.lineTo(cx-r*.95,cy+r*.75);
-          octx.closePath();
-          octx.fill();
-          break;
-      }
-      octx.restore();
-    }
+  shapeSize.addEventListener('input', live(() => shapeSizeValue.textContent = shapeSize.value + '%'));
+  cycleBg.addEventListener('change', live(() => cycleColors.classList.toggle('enabled', cycleBg.checked)));
+  [bgColor, shapeColor].forEach(i => i.addEventListener('input', live()));
+  cycleColors.addEventListener('input', live());
+  showActive.addEventListener('change', live());
 
-    const a = document.createElement('a');
-    a.download = 'recursive-grid.jpg';
-    a.href = out.toDataURL('image/jpeg', .95);
-    a.click();
+  prob.addEventListener('input', () => { probValue.textContent = prob.value + '%'; markPending(); });
+  depth.addEventListener('input', () => { depthValue.textContent = depth.value; markPending(); });
+  seedInput.addEventListener('input', markPending);
+  speed.addEventListener('input', () => {
+    const v = Number(speed.value);
+    speedValue.textContent = v === 0 ? 'off' : v.toFixed(1) + 's';
+    markPending();
+  });
+  seedDice.addEventListener('click', () => {
+    seedInput.value = String(Math.floor(Math.random() * 1e6));
+    generate();
   });
 
   regen.addEventListener('click', generate);
+  el('gridJpeg').addEventListener('click', exportJpeg);
+  el('gridPdf').addEventListener('click', exportPdf);
 
-  // Initial render after layout has been established.
-  requestAnimationFrame(() => {
-    resize();
-    generate();
+  loadCustom();
+  renderShapePicker();
+
+  return { resize, generate, isRunning: () => running };
+})();
+
+/* ============================================================
+   6. GENERATOR 2 — CIRCLE PACKING
+   ------------------------------------------------------------
+   Circles grow in parallel one unit at a time, which is what
+   gives co-seeded circles their matched final size. A uniform
+   spatial hash keeps neighbour lookups constant-time; because
+   circles only ever grow, a circle is added to new grid cells
+   but never removed from old ones.
+   ============================================================ */
+
+const Pack = (() => {
+  const canvas = document.getElementById('packCanvas');
+  const ctx = canvas.getContext('2d');
+  const el = id => document.getElementById(id);
+
+  const packBg = el('packBg'), colorMode = el('colorMode');
+  const colorA = el('packColorA'), colorB = el('packColorB');
+  const colorBWrap = el('packColorBWrap'), colorALabel = el('packColorALabel');
+  const outline = el('packOutline');
+  const seedInput = el('packSeed'), dice = el('packDice');
+  const seedsInput = el('packSeeds'), seedsValue = el('packSeedsValue');
+  const gapInput = el('packGap'), gapValue = el('packGapValue');
+  const minInput = el('packMin'), minValue = el('packMinValue');
+  const speedInput = el('packSpeed'), speedValue = el('packSpeedValue');
+  const pauseBtn = el('packPause'), restartBtn = el('packRestart'), skipBtn = el('packSkip');
+  const sim = el('packSim'), pendingNote = el('packPendingNote');
+  const status = el('packStatus');
+
+  const W = 1000;                 // logical artwork units; sliders read as px at this size
+  const MAX_CIRCLES = 20000;
+  const FAIL_LIMIT = 6000;
+
+  let circles = [], activeList = [];
+  let grid = null, cellSize = 25, cols = 0;
+  let visitStamp = null, stampId = 0;
+  let rng = mulberry32(1);
+  let gap = 2, minRadius = 3;
+  let fails = 0, done = false, paused = false, raf = null;
+  let observedMax = 1;
+  let logicalSize = 1000;
+  let pending = false;
+
+  // Settled circles are cached so late frames stay cheap once the count
+  // climbs into the thousands.
+  const settled = document.createElement('canvas');
+  const sctx = settled.getContext('2d');
+  let settledCount = 0, cacheKey = '';
+
+  /* ---- spatial hash ---- */
+  function initGrid() {
+    cellSize = 25;
+    cols = Math.ceil(W / cellSize);
+    grid = new Array(cols * cols);
+    for (let i = 0; i < grid.length; i++) grid[i] = [];
+    visitStamp = new Int32Array(MAX_CIRCLES);
+    stampId = 0;
+  }
+  const cellIndex = v => clamp(Math.floor(v / cellSize), 0, cols - 1);
+
+  function insert(i) {
+    const c = circles[i];
+    const c0 = cellIndex(c.x - c.r), c1 = cellIndex(c.x + c.r);
+    const r0 = cellIndex(c.y - c.r), r1 = cellIndex(c.y + c.r);
+    for (let gy = r0; gy <= r1; gy++) {
+      for (let gx = c0; gx <= c1; gx++) {
+        // Skip cells already claimed on a previous, smaller radius.
+        if (c.g && gx >= c.g[0] && gx <= c.g[1] && gy >= c.g[2] && gy <= c.g[3]) continue;
+        grid[gy * cols + gx].push(i);
+      }
+    }
+    c.g = [c0, c1, r0, r1];
+  }
+
+  function neighbours(x, y, radius, out) {
+    out.length = 0;
+    stampId++;
+    const c0 = cellIndex(x - radius), c1 = cellIndex(x + radius);
+    const r0 = cellIndex(y - radius), r1 = cellIndex(y + radius);
+    for (let gy = r0; gy <= r1; gy++) {
+      for (let gx = c0; gx <= c1; gx++) {
+        const bucket = grid[gy * cols + gx];
+        for (let k = 0; k < bucket.length; k++) {
+          const id = bucket[k];
+          if (visitStamp[id] !== stampId) { visitStamp[id] = stampId; out.push(id); }
+        }
+      }
+    }
+    return out;
+  }
+
+  const scratch = [];
+
+  // Largest circle that fits at a point, honouring the gap and the canvas edge.
+  // The search radius doubles until it provably contains the binding constraint.
+  function maxRadiusAt(px, py) {
+    let best = Math.min(px, py, W - px, W - py);
+    if (best <= 0) return 0;
+    let R = cellSize;
+    for (;;) {
+      let found = best;
+      const list = neighbours(px, py, R, scratch);
+      for (let k = 0; k < list.length; k++) {
+        const c = circles[list[k]];
+        const d = Math.hypot(px - c.x, py - c.y) - c.r - gap;
+        if (d < found) found = d;
+      }
+      if (found + gap <= R || R >= W * 2) return Math.max(0, found);
+      R *= 2;
+    }
+  }
+
+  function trySeed() {
+    const px = rng() * W, py = rng() * W;
+    const max = maxRadiusAt(px, py);
+    if (max < minRadius) return false;
+    if (circles.length >= MAX_CIRCLES) return false;
+    const c = { x: px, y: py, r: Math.min(0.5, max), active: true, g: null };
+    circles.push(c);
+    activeList.push(circles.length - 1);
+    insert(circles.length - 1);
+    return true;
+  }
+
+  function growStep() {
+    const step = 1;
+    const still = [];
+    // Caps are computed against the neighbour's current radius minus one step,
+    // so two circles growing toward each other can never cross the gap.
+    for (let n = 0; n < activeList.length; n++) {
+      const i = activeList[n];
+      const c = circles[i];
+      let cap = Math.min(c.x, c.y, W - c.x, W - c.y);
+      const list = neighbours(c.x, c.y, c.r + gap + step + 1, scratch);
+      for (let k = 0; k < list.length; k++) {
+        const j = list[k];
+        if (j === i) continue;
+        const o = circles[j];
+        const d = Math.hypot(c.x - o.x, c.y - o.y) - o.r - gap - (o.active ? step : 0);
+        if (d < cap) cap = d;
+      }
+      if (cap <= c.r + 0.001) {
+        c.active = false;
+      } else {
+        c.r = Math.min(c.r + step, cap);
+        if (c.r > observedMax) observedMax = c.r;
+        insert(i);
+        if (c.r >= cap - 0.001) c.active = false;
+      }
+      if (c.active) still.push(i);
+    }
+    activeList = still;
+  }
+
+  /* ---- colour ---- */
+  function colorFor(c) {
+    if (colorMode.dataset.mode !== 'ramp') return colorA.value;
+    const lo = minRadius, hi = Math.max(observedMax, lo + 1);
+    const t = clamp01((c.r - lo) / (hi - lo));
+    // Colour A is the largest circle, colour B the smallest.
+    return rgbToCss(mixOklab(hexToRgb(colorB.value), hexToRgb(colorA.value), t));
+  }
+
+  /* ---- drawing ---- */
+  function paintCircle(c, target, S) {
+    const k = S / W;
+    target.beginPath();
+    target.arc(c.x * k, c.y * k, Math.max(0.2, c.r * k), 0, Math.PI * 2);
+    if (outline.checked) {
+      target.strokeStyle = colorFor(c);
+      target.lineWidth = Math.max(0.6, 1.6 * k);
+      target.stroke();
+    } else {
+      target.fillStyle = colorFor(c);
+      target.fill();
+    }
+  }
+
+  function currentCacheKey() {
+    return [packBg.value, colorMode.dataset.mode, colorA.value, colorB.value,
+            outline.checked, Math.round(observedMax), logicalSize].join('|');
+  }
+
+  function draw() {
+    const S = logicalSize;
+    if (settled.width !== Math.round(S)) { settled.width = settled.height = Math.round(S); cacheKey = ''; }
+
+    const key = currentCacheKey();
+    if (key !== cacheKey) {
+      // Appearance changed: rebuild the settled layer from scratch.
+      cacheKey = key;
+      settledCount = 0;
+      sctx.setTransform(1, 0, 0, 1, 0, 0);
+      sctx.clearRect(0, 0, S, S);
+    }
+
+    // Fold every newly-stopped circle into the cache exactly once.
+    while (settledCount < circles.length) {
+      const c = circles[settledCount];
+      if (c.active) break;
+      paintCircle(c, sctx, S);
+      settledCount++;
+    }
+
+    ctx.fillStyle = packBg.value;
+    ctx.fillRect(0, 0, S, S);
+    ctx.drawImage(settled, 0, 0, S, S);
+    for (let i = settledCount; i < circles.length; i++) paintCircle(circles[i], ctx, S);
+  }
+
+  function paintFull(target, S) {
+    target.fillStyle = packBg.value;
+    target.fillRect(0, 0, S, S);
+    for (const c of circles) paintCircle(c, target, S);
+  }
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    logicalSize = rect.width;
+    cacheKey = '';
+    draw();
+  }
+
+  /* ---- simulation loop ---- */
+  function updateStatus() {
+    if (done) {
+      status.textContent = 'Finished · ' + circles.length + ' circles · ' +
+        'largest ' + Math.round(observedMax) + 'px' +
+        (circles.length >= MAX_CIRCLES ? ' (circle limit reached)' : '');
+    } else {
+      status.textContent = (paused ? 'Paused · ' : 'Packing · ') + circles.length +
+        ' circles · ' + activeList.length + ' growing';
+    }
+  }
+
+  function advance(substeps, attemptBudget) {
+    const target = Number(seedsInput.value);
+    for (let s = 0; s < substeps && !done; s++) {
+      growStep();
+      // Hold roughly `target` circles growing at once. Seeding any faster
+      // floods the canvas and nothing ever gets large.
+      let attempts = 0;
+      while (activeList.length < target && attempts < attemptBudget && circles.length < MAX_CIRCLES) {
+        attempts++;
+        if (trySeed()) fails = 0; else fails++;
+      }
+      if ((fails > FAIL_LIMIT && !activeList.length) || circles.length >= MAX_CIRCLES) {
+        done = true;
+        activeList.forEach(i => circles[i].active = false);
+        activeList = [];
+      }
+    }
+  }
+
+  function loop() {
+    raf = null;
+    if (!paused && !done) {
+      const speed = Number(speedInput.value);
+      advance(Math.max(1, Math.round(speed)), 40);
+      draw();
+      updateStatus();
+    }
+    if (!done) raf = requestAnimationFrame(loop);
+    else { draw(); updateStatus(); setPauseLabel(); }
+  }
+
+  function setPauseLabel() {
+    pauseBtn.textContent = done ? 'Finished' : (paused ? 'Resume' : 'Pause');
+    pauseBtn.disabled = done;
+  }
+
+  function restart() {
+    if (raf) cancelAnimationFrame(raf);
+    clearPending();
+    rng = mulberry32(seedFromString(seedInput.value.trim() || '1'));
+    gap = Number(gapInput.value);
+    minRadius = Number(minInput.value);
+    circles = []; activeList = []; fails = 0; done = false; paused = false;
+    observedMax = 1; settledCount = 0; cacheKey = '';
+    initGrid();
+
+    const wanted = Number(seedsInput.value);
+    for (let i = 0, guard = 0; i < wanted && guard < wanted * 200; guard++) {
+      if (trySeed()) i++;
+    }
+    setPauseLabel();
+    updateStatus();
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function skipToEnd() {
+    if (done) return;
+    paused = false;
+    const t0 = performance.now();
+    while (!done && performance.now() - t0 < 8000) advance(40, 120);
+    if (!done) { done = true; activeList.forEach(i => circles[i].active = false); activeList = []; }
+    draw();
+    updateStatus();
+    setPauseLabel();
+  }
+
+  /* ---- exports ---- */
+  function exportJpeg() {
+    const S = 2400;
+    const out = document.createElement('canvas');
+    out.width = out.height = S;
+    paintFull(out.getContext('2d'), S);
+    out.toBlob(b => download(b, 'circle-packing-' + stamp() + '.jpg'), 'image/jpeg', 0.95);
+  }
+
+  function exportPdf() {
+    const S = 1000;
+    const k = S / W;
+    let content = PDF.fill(hexToRgb(packBg.value)) + PDF.rect(0, 0, S, S) + 'f\n';
+    const stroking = outline.checked;
+    if (stroking) content += PDF.num(1.6 * k) + ' w\n';
+
+    let last = null;
+    for (const c of circles) {
+      const col = colorFor(c);
+      if (col !== last) {
+        const rgb = col.startsWith('#') ? hexToRgb(col) : col.match(/\d+/g).map(n => n / 255);
+        content += stroking ? PDF.stroke(rgb) : PDF.fill(rgb);
+        last = col;
+      }
+      content += PDF.circle(c.x * k, c.y * k, Math.max(0.15, c.r * k)) + (stroking ? 'S\n' : 'f\n');
+    }
+    download(PDF.build(S, S, content, 'Circle Packing'), 'circle-packing-' + stamp() + '.pdf');
+  }
+
+  /* ---- wiring ---- */
+  function markPending() {
+    pending = true;
+    sim.classList.add('pending');
+    pendingNote.textContent = 'press restart';
+    restartBtn.classList.add('active');
+  }
+  function clearPending() {
+    pending = false;
+    sim.classList.remove('pending');
+    pendingNote.textContent = 'next restart';
+    restartBtn.classList.remove('active');
+  }
+
+  colorMode.addEventListener('click', ev => {
+    const btn = ev.target.closest('button[data-mode]');
+    if (!btn) return;
+    colorMode.dataset.mode = btn.dataset.mode;
+    [...colorMode.children].forEach(b => b.classList.toggle('active', b === btn));
+    const ramp = btn.dataset.mode === 'ramp';
+    colorBWrap.hidden = !ramp;
+    colorALabel.textContent = ramp ? 'Largest' : 'Circles';
+    draw();
   });
+  colorMode.dataset.mode = 'single';
+
+  [packBg, colorA, colorB].forEach(i => i.addEventListener('input', draw));
+  outline.addEventListener('change', draw);
+
+  speedInput.addEventListener('input', () => speedValue.textContent = Number(speedInput.value).toFixed(1) + '×');
+  seedsInput.addEventListener('input', () => { seedsValue.textContent = seedsInput.value; markPending(); });
+  gapInput.addEventListener('input', () => { gapValue.textContent = gapInput.value + 'px'; markPending(); });
+  minInput.addEventListener('input', () => { minValue.textContent = minInput.value + 'px'; markPending(); });
+  seedInput.addEventListener('input', markPending);
+  dice.addEventListener('click', () => { seedInput.value = String(Math.floor(Math.random() * 1e6)); restart(); });
+
+  pauseBtn.addEventListener('click', () => {
+    if (done) return;
+    paused = !paused;
+    setPauseLabel();
+    updateStatus();
+    if (!paused && !raf) raf = requestAnimationFrame(loop);
+  });
+  restartBtn.addEventListener('click', restart);
+  skipBtn.addEventListener('click', skipToEnd);
+  el('packJpeg').addEventListener('click', exportJpeg);
+  el('packPdf').addEventListener('click', exportPdf);
+
+  return { resize, restart, started: () => circles.length > 0 };
+})();
+
+/* ============================================================
+   7. SHELL
+   ============================================================ */
+
+(function shell() {
+  const tabs = [...document.querySelectorAll('.tab')];
+  const panels = [...document.querySelectorAll('.panel')];
+  const stages = [...document.querySelectorAll('.stage')];
+  let current = 'grid';
+
+  function activate(name) {
+    current = name;
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.hidden = p.dataset.panel !== name);
+    stages.forEach(s => s.hidden = s.dataset.panel !== name);
+    // resize() reads getBoundingClientRect, which forces layout, so this is
+    // safe synchronously right after toggling [hidden] — and it means a tab
+    // still initialises when frames are not flowing (backgrounded document).
+    if (name === 'grid') Grid.resize();
+    else {
+      Pack.resize();
+      if (!Pack.started()) Pack.restart();
+    }
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (current === 'grid') Grid.resize(); else Pack.resize();
+    }, 120);
+  });
+
+  Grid.resize();
+  Grid.generate();
+})();
+
 })();
 </script>
 </body>
