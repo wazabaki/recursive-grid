@@ -29,7 +29,7 @@
     border-right: 1px solid #d5d5d0;
     display: flex;
     flex-direction: column;
-    gap: 19px;
+    gap: 16px;
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
@@ -153,7 +153,7 @@
 
   .shape-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 7px;
   }
   button, select, input {
@@ -266,7 +266,7 @@
     <div>
       <h1>Recursive Grid</h1>
       <div class="intro">
-        A 2×2 grid recursively subdivides its empty cells. Every empty cell is tested again until the entire canvas is occupied.
+        A 2×2 grid recursively subdivides its empty cells. Every empty cell goes through the same process until all cells are filled.
       </div>
     </div>
 
