@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recursive Grid Generator</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #e9e9e7;
+    color: #171717;
+  }
+  .app {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+  }
+  aside {
+    width: 280px;
+    flex: 0 0 280px;
+    height: 100vh;
+    padding: 28px 24px;
+    background: #f5f5f2;
+    border-right: 1px solid #d5d5d0;
+    display: flex;
+    flex-direction: column;
+    gap: 19px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+  }
+  h1 {
+    margin: 0;
+    font-size: 19px;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+  .intro {
+    margin-top: 8px;
+    color: #666;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #777;
+  }
+
+  .shape-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+  .shape-btn {
+    width: 100%;
+    height: 38px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+  }
+  .shape-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    position: relative;
+  }
+  .shape-icon.circle {
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .shape-icon.ring {
+    border-radius: 50%;
+    border: 3px solid currentColor;
+  }
+  .shape-icon.diamond {
+    width: 15px;
+    height: 15px;
+    background: currentColor;
+    transform: rotate(45deg);
+  }
+  .shape-icon.square {
+    width: 15px;
+    height: 15px;
+    background: currentColor;
+  }
+  .shape-icon.cross::before,
+  .shape-icon.cross::after {
+    content: "";
+    position: absolute;
+    background: currentColor;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .shape-icon.cross::before { width: 18px; height: 6px; }
+  .shape-icon.cross::after { width: 6px; height: 18px; }
+  .shape-icon.triangle {
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 18px solid currentColor;
+  }
+  .color-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .color-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 7px 8px;
+    border: 1px solid #d0d0cb;
+    border-radius: 7px;
+    background: #fff;
+    font-size: 11px;
+    color: #555;
+  }
+  .color-control input,
+  .depth-color {
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
+  .cycle-row {
+    display: flex;
+    gap: 5px;
+    opacity: .45;
+    pointer-events: none;
+  }
+  .cycle-row.enabled {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .shape-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  button, select, input {
+    font: inherit;
+  }
+  .shape-btn {
+    height: 42px;
+    border: 1px solid #d0d0cb;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    transition: .15s ease;
+  }
+  .shape-btn:hover { border-color: #999; }
+  .shape-btn.active {
+    background: #171717;
+    color: white;
+    border-color: #171717;
+  }
+  .control {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+  }
+  input[type="range"] { width: 100%; accent-color: #171717; }
+  .value {
+    min-width: 30px;
+    text-align: right;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+  }
+  .check {
+    display: flex;
+    gap: 9px;
+    align-items: center;
+    font-size: 12px;
+    color: #444;
+  }
+  .check input { accent-color: #171717; }
+  .actions {
+    margin-top: auto;
+    display: grid;
+    gap: 8px;
+  }
+  .action {
+    height: 44px;
+    border-radius: 8px;
+    border: 1px solid #171717;
+    background: #171717;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 650;
+    font-size: 12px;
+  }
+  .action.secondary {
+    background: transparent;
+    color: #171717;
+  }
+  .action:disabled {
+    opacity: .35;
+    cursor: default;
+  }
+  .status {
+    min-height: 32px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #777;
+  }
+  main {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    padding: 35px;
+  }
+  .canvas-wrap {
+    width: min(82vh, calc(100vw - 360px), 900px);
+    aspect-ratio: 1;
+    background: white;
+    box-shadow: 0 16px 50px rgba(0,0,0,.10);
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  @media (max-width: 700px) {
+    html, body { overflow: auto; }
+    .app { height: auto; min-height: 100vh; flex-direction: column; }
+    aside {
+      width: 100%;
+      height: auto;
+      max-height: 55vh;
+      flex-basis: auto;
+      border-right: 0;
+      border-bottom: 1px solid #d5d5d0;
+    }
+    main { min-height: 70vh; padding: 20px; }
+    .canvas-wrap { width: min(90vw, 70vh); }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div>
+      <h1>Recursive Grid</h1>
+      <div class="intro">
+        A 2×2 grid recursively subdivides its empty cells. Every empty cell is tested again until the entire canvas is occupied.
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Shapes</div>
+      <div class="shape-grid">
+        <button class="shape-btn active" data-shape="ring" aria-label="Ring"><span class="shape-icon ring"></span></button>
+        <button class="shape-btn active" data-shape="circle" aria-label="Circle"><span class="shape-icon circle"></span></button>
+        <button class="shape-btn active" data-shape="diamond" aria-label="Diamond"><span class="shape-icon diamond"></span></button>
+        <button class="shape-btn active" data-shape="square" aria-label="Square"><span class="shape-icon square"></span></button>
+        <button class="shape-btn active" data-shape="cross" aria-label="Cross"><span class="shape-icon cross"></span></button>
+        <button class="shape-btn active" data-shape="triangle" aria-label="Triangle"><span class="shape-icon triangle"></span></button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Colour</div>
+      <div class="color-row">
+        <label class="color-control">
+          <span>Background</span>
+          <input id="bgColor" type="color" value="#ffffff">
+        </label>
+        <label class="color-control">
+          <span>Shape</span>
+          <input id="shapeColor" type="color" value="#111111">
+        </label>
+      </div>
+      <label class="check">
+        <input id="cycleBg" type="checkbox">
+        Cycle background by depth
+      </label>
+      <div class="cycle-row" id="cycleColors">
+        <input class="depth-color" type="color" value="#ffffff">
+        <input class="depth-color" type="color" value="#f2efff">
+        <input class="depth-color" type="color" value="#eee8ff">
+        <input class="depth-color" type="color" value="#e9dcff">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Parameters</div>
+
+      <div class="control">
+        <span>Fill probability</span>
+        <span class="value" id="probValue">50%</span>
+        <input id="prob" type="range" min="10" max="90" value="50" style="grid-column:1/-1">
+      </div>
+
+      <div class="control">
+        <span>Max depth</span>
+        <span class="value" id="depthValue">7</span>
+        <input id="depth" type="range" min="2" max="10" value="7" style="grid-column:1/-1">
+      </div>
+
+      <div class="control">
+        <span>Shape size</span>
+        <span class="value" id="shapeSizeValue">65%</span>
+        <input id="shapeSize" type="range" min="20" max="95" value="65" style="grid-column:1/-1">
+      </div>
+
+      <div class="control">
+        <span>Animation</span>
+        <span class="value" id="speedValue">3.0s</span>
+        <input id="speed" type="range" min="2" max="4" step=".1" value="3" style="grid-column:1/-1">
+      </div>
+
+      <label class="check">
+        <input id="purple" type="checkbox" checked>
+        Show active cell
+      </label>
+    </div>
+
+    <div class="status" id="status">Ready to generate.</div>
+
+    <div class="actions">
+      <button class="action" id="regen">Regenerate</button>
+      <button class="action secondary" id="export">Export JPEG</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const regen = document.getElementById('regen');
+  const exportBtn = document.getElementById('export');
+  const status = document.getElementById('status');
+  const prob = document.getElementById('prob');
+  const depth = document.getElementById('depth');
+  const speed = document.getElementById('speed');
+  const probValue = document.getElementById('probValue');
+  const depthValue = document.getElementById('depthValue');
+  const speedValue = document.getElementById('speedValue');
+  const purple = document.getElementById('purple');
+  const bgColor = document.getElementById('bgColor');
+  const shapeColor = document.getElementById('shapeColor');
+  const cycleBg = document.getElementById('cycleBg');
+  const cycleColors = document.getElementById('cycleColors');
+  const shapeSize = document.getElementById('shapeSize');
+  const shapeSizeValue = document.getElementById('shapeSizeValue');
+
+  let selectedShapes = new Set(['ring','circle','diamond','square','cross','triangle']);
+  let cells = [];
+  let activeCell = null;
+  let animationStart = 0;
+  let duration = 3000;
+  let running = false;
+  let raf = null;
+  let logicalSize = 1000;
+
+  document.querySelectorAll('.shape-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const shape = btn.dataset.shape;
+      if (selectedShapes.has(shape) && selectedShapes.size > 1) {
+        selectedShapes.delete(shape);
+        btn.classList.remove('active');
+      } else {
+        selectedShapes.add(shape);
+        btn.classList.add('active');
+      }
+    });
+  });
+
+  prob.addEventListener('input', () => probValue.textContent = prob.value + '%');
+  depth.addEventListener('input', () => depthValue.textContent = depth.value);
+  speed.addEventListener('input', () => {
+    speedValue.textContent = Number(speed.value).toFixed(1) + 's';
+    if (!running) duration = Number(speed.value) * 1000;
+  });
+
+  shapeSize.addEventListener('input', () => {
+    shapeSizeValue.textContent = shapeSize.value + '%';
+    draw();
+  });
+
+  cycleBg.addEventListener('change', () => {
+    cycleColors.classList.toggle('enabled', cycleBg.checked);
+    draw();
+  });
+
+  [bgColor, shapeColor, ...document.querySelectorAll('.depth-color')].forEach(input => {
+    input.addEventListener('input', draw);
+  });
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    logicalSize = rect.width;
+    draw();
+  }
+  window.addEventListener('resize', resize);
+
+  // The zero state is ALWAYS four equal squares (2×2).
+  // Each generation evaluates all currently-empty cells. Every blank cell
+  // becomes a new 2×2 group in the following generation.
+  function buildTree() {
+    const result = [];
+    const maxDepth = Number(depth.value);
+    const fillP = Number(prob.value) / 100;
+    const shapes = [...selectedShapes];
+
+    let frontier = [
+      { x: 0, y: 0, size: 0.5, depth: 1 },
+      { x: 0.5, y: 0, size: 0.5, depth: 1 },
+      { x: 0, y: 0.5, size: 0.5, depth: 1 },
+      { x: 0.5, y: 0.5, size: 0.5, depth: 1 }
+    ];
+
+    // Every frontier is one complete generation.
+    while (frontier.length) {
+      const next = [];
+
+      for (const parent of frontier) {
+        const cell = {
+          x: parent.x,
+          y: parent.y,
+          size: parent.size,
+          depth: parent.depth,
+          filled: false,
+          shape: null,
+          visible: false,
+          generation: parent.depth
+        };
+
+        result.push(cell);
+
+        // At the maximum depth, a cell must be filled.
+        if (parent.depth >= maxDepth || Math.random() < fillP) {
+          cell.filled = true;
+          cell.shape = shapes[Math.floor(Math.random() * shapes.length)];
+        } else {
+          // Blank cells are subdivided into FOUR new squares.
+          const half = parent.size / 2;
+          const d = parent.depth + 1;
+
+          next.push({ x: parent.x,        y: parent.y,        size: half, depth: d });
+          next.push({ x: parent.x + half, y: parent.y,        size: half, depth: d });
+          next.push({ x: parent.x,        y: parent.y + half, size: half, depth: d });
+          next.push({ x: parent.x + half, y: parent.y + half, size: half, depth: d });
+        }
+      }
+
+      frontier = next;
+    }
+
+    return result;
+  }
+
+  function drawShape(cell, alpha = 1) {
+    const x = cell.x * logicalSize;
+    const y = cell.y * logicalSize;
+    const s = cell.size * logicalSize;
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    const sizeFactor = Number(shapeSize.value) / 100;
+    const r = Math.max(1, (s / 2) * sizeFactor);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = shapeColor.value;
+    ctx.strokeStyle = shapeColor.value;
+    ctx.lineWidth = Math.max(1, s * .035);
+
+    switch (cell.shape) {
+      case 'ring':
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.arc(cx, cy, r * .52, 0, Math.PI * 2, true);
+        ctx.fill('evenodd');
+        break;
+
+      case 'circle':
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 'diamond':
+        ctx.beginPath();
+        ctx.moveTo(cx, cy-r);
+        ctx.lineTo(cx+r, cy);
+        ctx.lineTo(cx, cy+r);
+        ctx.lineTo(cx-r, cy);
+        ctx.closePath();
+        ctx.fill();
+        break;
+
+      case 'square':
+        const q = r * 1.45;
+        ctx.fillRect(cx-q/2, cy-q/2, q, q);
+        break;
+
+      case 'cross':
+        const t = r * .58;
+        const arm = r * 1.55;
+        ctx.fillRect(cx-t/2, cy-arm/2, t, arm);
+        ctx.fillRect(cx-arm/2, cy-t/2, arm, t);
+        break;
+
+      case 'triangle':
+        ctx.beginPath();
+        ctx.moveTo(cx, cy-r);
+        ctx.lineTo(cx+r*.95, cy+r*.75);
+        ctx.lineTo(cx-r*.95, cy+r*.75);
+        ctx.closePath();
+        ctx.fill();
+        break;
+    }
+    ctx.restore();
+  }
+
+  function drawGridCell(cell, stroke, lineWidth = 1) {
+    const x = cell.x * logicalSize;
+    const y = cell.y * logicalSize;
+    const s = cell.size * logicalSize;
+    ctx.save();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.strokeRect(x + lineWidth/2, y + lineWidth/2, s-lineWidth, s-lineWidth);
+    ctx.restore();
+  }
+
+  function draw() {
+    // Background can either stay constant or cycle through a small palette
+    // according to recursion depth.
+    ctx.fillStyle = bgColor.value;
+    ctx.fillRect(0, 0, logicalSize, logicalSize);
+
+    if (!cells.length) return;
+
+    if (cycleBg.checked) {
+      const palette = [...document.querySelectorAll('.depth-color')];
+      for (const cell of cells) {
+        if (!cell.visible) continue;
+        const c = palette[(cell.depth - 1) % palette.length];
+        if (!c) continue;
+        const x = cell.x * logicalSize;
+        const y = cell.y * logicalSize;
+        const s = cell.size * logicalSize;
+        ctx.fillStyle = c.value;
+        ctx.fillRect(x, y, s, s);
+      }
+    }
+
+    // Draw all cells whose decision has been reached.
+    for (const cell of cells) {
+      if (cell.visible && cell.filled) drawShape(cell);
+    }
+
+    if (running && activeCell && purple.checked) {
+      drawGridCell(activeCell, '#9b5cff', Math.max(2, logicalSize * .005));
+    }
+  }
+
+  function generate() {
+    if (running) return;
+
+    cells = buildTree();
+    duration = Number(speed.value) * 1000;
+    animationStart = performance.now();
+    running = true;
+    activeCell = null;
+    regen.disabled = true;
+    exportBtn.disabled = true;
+
+    // Group cells by generation. The first generation contains exactly 4 cells.
+    const generations = [];
+    for (const cell of cells) {
+      if (!generations[cell.generation - 1]) generations[cell.generation - 1] = [];
+      generations[cell.generation - 1].push(cell);
+    }
+
+    cells.forEach(c => c.visible = false);
+
+    const generationCount = generations.length;
+    const stepTime = duration / Math.max(1, generationCount);
+    let currentGeneration = -1;
+
+    function tick(now) {
+      const elapsed = now - animationStart;
+      const genFloat = Math.min(generationCount, elapsed / stepTime);
+      const genIndex = Math.min(generationCount - 1, Math.floor(genFloat));
+
+      // Reveal one generation at a time, and briefly highlight every cell
+      // in that generation in sequence.
+      for (let g = 0; g < genIndex; g++) {
+        generations[g].forEach(c => c.visible = true);
+      }
+
+      if (genIndex >= 0 && genIndex < generationCount) {
+        const within = Math.min(0.999, genFloat - genIndex);
+        const group = generations[genIndex];
+        const activeIndex = Math.min(group.length - 1, Math.floor(within * group.length));
+
+        for (let i = 0; i < activeIndex; i++) group[i].visible = true;
+        activeCell = group[activeIndex] || null;
+
+        status.textContent =
+          `Generation ${genIndex + 1} of ${generationCount} · ` +
+          `${group.length} cells`;
+      }
+
+      draw();
+
+      if (elapsed < duration) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        cells.forEach(c => c.visible = true);
+        activeCell = null;
+        running = false;
+        regen.disabled = false;
+        exportBtn.disabled = false;
+        status.textContent =
+          `Complete · ${cells.filter(c => c.filled).length} shapes · ` +
+          `${generationCount} generations`;
+        draw();
+      }
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  exportBtn.addEventListener('click', () => {
+    if (running) return;
+
+    // Export at a clean 1600 × 1600 resolution.
+    const out = document.createElement('canvas');
+    out.width = 1600;
+    out.height = 1600;
+    const octx = out.getContext('2d');
+
+    octx.fillStyle = bgColor.value;
+    octx.fillRect(0, 0, 1600, 1600);
+
+    if (cycleBg.checked) {
+      const palette = [...document.querySelectorAll('.depth-color')];
+      for (const cell of cells) {
+        if (!cell.filled) {
+          const c = palette[(cell.depth - 1) % palette.length];
+          if (!c) continue;
+          octx.fillStyle = c.value;
+          octx.fillRect(cell.x * 1600, cell.y * 1600, cell.size * 1600, cell.size * 1600);
+        }
+      }
+    }
+
+    const scale = 1600;
+    for (const cell of cells) {
+      if (!cell.filled) continue;
+
+      const x = cell.x * scale;
+      const y = cell.y * scale;
+      const s = cell.size * scale;
+      const cx = x + s/2;
+      const cy = y + s/2;
+      const r = Math.max(1, (s/2) * (Number(shapeSize.value) / 100));
+
+      octx.save();
+      octx.fillStyle = shapeColor.value;
+      octx.strokeStyle = '#111';
+
+      switch (cell.shape) {
+        case 'ring':
+          octx.beginPath();
+          octx.arc(cx,cy,r,0,Math.PI*2);
+          octx.arc(cx,cy,r*.52,0,Math.PI*2,true);
+          octx.fill('evenodd');
+          break;
+        case 'circle':
+          octx.beginPath();
+          octx.arc(cx,cy,r,0,Math.PI*2);
+          octx.fill();
+          break;
+        case 'diamond':
+          octx.beginPath();
+          octx.moveTo(cx,cy-r);
+          octx.lineTo(cx+r,cy);
+          octx.lineTo(cx,cy+r);
+          octx.lineTo(cx-r,cy);
+          octx.closePath();
+          octx.fill();
+          break;
+        case 'square':
+          const q=r*1.45;
+          octx.fillRect(cx-q/2,cy-q/2,q,q);
+          break;
+        case 'cross':
+          const tt=r*.58, arm=r*1.55;
+          octx.fillRect(cx-tt/2,cy-arm/2,tt,arm);
+          octx.fillRect(cx-arm/2,cy-tt/2,arm,tt);
+          break;
+        case 'triangle':
+          octx.beginPath();
+          octx.moveTo(cx,cy-r);
+          octx.lineTo(cx+r*.95,cy+r*.75);
+          octx.lineTo(cx-r*.95,cy+r*.75);
+          octx.closePath();
+          octx.fill();
+          break;
+      }
+      octx.restore();
+    }
+
+    const a = document.createElement('a');
+    a.download = 'recursive-grid.jpg';
+    a.href = out.toDataURL('image/jpeg', .95);
+    a.click();
+  });
+
+  regen.addEventListener('click', generate);
+
+  // Initial render after layout has been established.
+  requestAnimationFrame(() => {
+    resize();
+    generate();
+  });
+})();
+</script>
+</body>
+</html>
