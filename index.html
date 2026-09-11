@@ -198,6 +198,8 @@
   .action:disabled { opacity: .3; cursor: default; }
   .export-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
   .status { min-height: 30px; font-size: 10.5px; line-height: 1.45; color: #85857d; }
+  .hint { font-size: 10.5px; line-height: 1.45; color: #8a8a82; }
+  #packCanvas { cursor: crosshair; touch-action: none; }
   .status .warn { color: #b4700a; }
 
   /* ---- stage ---- */
@@ -372,12 +374,17 @@
 
         <div class="group">
           <div class="group-head">
-            <span class="group-title">Playback</span>
+            <span class="group-title">Build</span>
             <span class="group-note">live</span>
           </div>
+          <div class="hint">Click and hold anywhere empty to grow a circle by hand. It stops when you let go, or when it meets a neighbour or the edge.</div>
           <div class="control">
             <span>Speed</span><span class="value" id="packSpeedValue">1.0&times;</span>
             <input id="packSpeed" type="range" min="0.1" max="12" step=".1" value="1">
+          </div>
+          <div class="seg">
+            <button id="packFill">Fill space</button>
+            <button id="packClear">Clear</button>
           </div>
           <div class="seg">
             <button id="packPause">Pause</button>
@@ -1366,12 +1373,14 @@ const Pack = (() => {
   const minInput = el('packMin'), minValue = el('packMinValue');
   const speedInput = el('packSpeed'), speedValue = el('packSpeedValue');
   const pauseBtn = el('packPause'), restartBtn = el('packRestart'), skipBtn = el('packSkip');
+  const fillBtn = el('packFill'), clearBtn = el('packClear');
   const sim = el('packSim'), pendingNote = el('packPendingNote');
   const status = el('packStatus');
 
   const W = 1000;                 // logical artwork units; sliders read as px at this size
   const MAX_CIRCLES = 20000;
   const FAIL_LIMIT = 6000;
+  const SEED_ATTEMPTS = 60;   // per substep; shared by the live loop and skip so a seed is reproducible either way
 
   let circles = [], activeList = [];
   let grid = null, cellSize = 25, cols = 0;
@@ -1379,6 +1388,9 @@ const Pack = (() => {
   let rng = mulberry32(1);
   let gap = 2, minRadius = 3;
   let fails = 0, done = false, paused = false, raf = null;
+  let autoOn = false;        // the automatic packer is engaged on this canvas
+  let manual = -1;           // index of the circle being grown by hand, or -1
+  let hover = null;          // preview of the largest circle that fits under the cursor
   let observedMax = 1;
   let logicalSize = 1000;
   let pending = false;
@@ -1464,32 +1476,33 @@ const Pack = (() => {
     return true;
   }
 
-  function growStep() {
+  // Grow one circle by one unit. Returns false once it can grow no further.
+  // Caps are computed against each neighbour's current radius minus one step,
+  // so two circles growing toward each other can never cross the gap.
+  function growOne(i) {
     const step = 1;
+    const c = circles[i];
+    let cap = Math.min(c.x, c.y, W - c.x, W - c.y);
+    const list = neighbours(c.x, c.y, c.r + gap + step + 1, scratch);
+    for (let k = 0; k < list.length; k++) {
+      const j = list[k];
+      if (j === i) continue;
+      const o = circles[j];
+      const d = Math.hypot(c.x - o.x, c.y - o.y) - o.r - gap - (o.active ? step : 0);
+      if (d < cap) cap = d;
+    }
+    if (cap <= c.r + 0.001) { c.active = false; return false; }
+    c.r = Math.min(c.r + step, cap);
+    if (c.r > observedMax) observedMax = c.r;
+    insert(i);
+    if (c.r >= cap - 0.001) { c.active = false; return false; }
+    return true;
+  }
+
+  function growStep() {
     const still = [];
-    // Caps are computed against the neighbour's current radius minus one step,
-    // so two circles growing toward each other can never cross the gap.
     for (let n = 0; n < activeList.length; n++) {
-      const i = activeList[n];
-      const c = circles[i];
-      let cap = Math.min(c.x, c.y, W - c.x, W - c.y);
-      const list = neighbours(c.x, c.y, c.r + gap + step + 1, scratch);
-      for (let k = 0; k < list.length; k++) {
-        const j = list[k];
-        if (j === i) continue;
-        const o = circles[j];
-        const d = Math.hypot(c.x - o.x, c.y - o.y) - o.r - gap - (o.active ? step : 0);
-        if (d < cap) cap = d;
-      }
-      if (cap <= c.r + 0.001) {
-        c.active = false;
-      } else {
-        c.r = Math.min(c.r + step, cap);
-        if (c.r > observedMax) observedMax = c.r;
-        insert(i);
-        if (c.r >= cap - 0.001) c.active = false;
-      }
-      if (c.active) still.push(i);
+      if (growOne(activeList[n])) still.push(activeList[n]);
     }
     activeList = still;
   }
@@ -1497,8 +1510,12 @@ const Pack = (() => {
   /* ---- colour ---- */
   function colorFor(c) {
     if (colorMode.dataset.mode !== 'ramp') return colorA.value;
-    const lo = minRadius, hi = Math.max(observedMax, lo + 1);
-    const t = clamp01((c.r - lo) / (hi - lo));
+    const lo = Math.max(1, minRadius), hi = Math.max(observedMax, lo * 1.01);
+    // Radii in a packing are heavy-tailed: a handful of large circles and
+    // hundreds within a few px of the minimum. A linear map spends nearly the
+    // whole ramp on sizes nothing occupies, so the small circles all land on
+    // colour B. Log spacing gives each doubling of radius an equal share.
+    const t = clamp01(Math.log(c.r / lo) / Math.log(hi / lo));
     // Colour A is the largest circle, colour B the smallest.
     return rgbToCss(mixOklab(hexToRgb(colorB.value), hexToRgb(colorA.value), t));
   }
@@ -1548,6 +1565,20 @@ const Pack = (() => {
     ctx.fillRect(0, 0, S, S);
     ctx.drawImage(settled, 0, 0, S, S);
     for (let i = settledCount; i < circles.length; i++) paintCircle(circles[i], ctx, S);
+
+    // Screen-only affordance: the largest circle that would fit under the cursor.
+    if (hover && manual < 0) {
+      const k = S / W;
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.globalAlpha = 0.45;
+      ctx.strokeStyle = colorA.value;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(hover.x * k, hover.y * k, hover.r * k, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function paintFull(target, S) {
@@ -1570,24 +1601,31 @@ const Pack = (() => {
 
   /* ---- simulation loop ---- */
   function updateStatus() {
-    if (done) {
+    if (manual >= 0) {
+      status.textContent = 'Drawing · ' + Math.round(circles[manual].r) + 'px · release to stop';
+    } else if (done) {
       status.textContent = 'Finished · ' + circles.length + ' circles · ' +
         'largest ' + Math.round(observedMax) + 'px' +
         (circles.length >= MAX_CIRCLES ? ' (circle limit reached)' : '');
-    } else {
+    } else if (autoOn) {
       status.textContent = (paused ? 'Paused · ' : 'Packing · ') + circles.length +
         ' circles · ' + activeList.length + ' growing';
+    } else if (!circles.length) {
+      status.textContent = 'Empty canvas · click and hold to draw, or press Fill space.';
+    } else {
+      status.textContent = circles.length + ' circle' + (circles.length > 1 ? 's' : '') +
+        ' · keep drawing, or press Fill space for the rest.';
     }
   }
 
-  function advance(substeps, attemptBudget) {
+  function advance(substeps) {
     const target = Number(seedsInput.value);
     for (let s = 0; s < substeps && !done; s++) {
       growStep();
       // Hold roughly `target` circles growing at once. Seeding any faster
       // floods the canvas and nothing ever gets large.
       let attempts = 0;
-      while (activeList.length < target && attempts < attemptBudget && circles.length < MAX_CIRCLES) {
+      while (activeList.length < target && attempts < SEED_ATTEMPTS && circles.length < MAX_CIRCLES) {
         attempts++;
         if (trySeed()) fails = 0; else fails++;
       }
@@ -1599,53 +1637,132 @@ const Pack = (() => {
     }
   }
 
+  // One loop drives both the hand-drawn circle and the automatic packer, and
+  // stops itself once nothing on the canvas is still growing.
   function loop() {
     raf = null;
-    if (!paused && !done) {
-      const speed = Number(speedInput.value);
-      advance(Math.max(1, Math.round(speed)), 40);
-      draw();
-      updateStatus();
+    const substeps = Math.max(1, Math.round(Number(speedInput.value)));
+    let busy = false;
+
+    if (manual >= 0) {
+      // Hand drawing runs faster than the packer so a held click feels responsive.
+      for (let s = 0; s < substeps * 3; s++) {
+        if (!growOne(manual)) { manual = -1; break; }
+      }
+      busy = manual >= 0;
     }
-    if (!done) raf = requestAnimationFrame(loop);
-    else { draw(); updateStatus(); setPauseLabel(); }
+    if (autoOn && !paused && !done) {
+      advance(substeps);
+      busy = busy || !done;
+    }
+
+    draw();
+    updateStatus();
+    setButtons();
+    if (busy) raf = requestAnimationFrame(loop);
+  }
+  function ensureLoop() { if (!raf) raf = requestAnimationFrame(loop); }
+
+  function setButtons() {
+    const running = autoOn && !done;
+    pauseBtn.textContent = running && paused ? 'Resume' : 'Pause';
+    pauseBtn.disabled = !running;
+    fillBtn.disabled = done || (running && !paused);
+    skipBtn.disabled = done;
   }
 
-  function setPauseLabel() {
-    pauseBtn.textContent = done ? 'Finished' : (paused ? 'Resume' : 'Pause');
-    pauseBtn.disabled = done;
+  function applyParams() {
+    gap = Number(gapInput.value);
+    minRadius = Number(minInput.value);
+    clearPending();
+  }
+
+  function clear() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    rng = mulberry32(seedFromString(seedInput.value.trim() || '1'));
+    applyParams();
+    circles = []; activeList = []; manual = -1; hover = null;
+    fails = 0; done = false; paused = false; autoOn = false;
+    observedMax = 1; settledCount = 0; cacheKey = '';
+    initGrid();
+    draw();
+    updateStatus();
+    setButtons();
+  }
+
+  // Engage the packer on whatever is already on the canvas.
+  function fill() {
+    if (done) return;
+    applyParams();
+    autoOn = true;
+    paused = false;
+    fails = 0;
+    updateStatus();
+    setButtons();
+    ensureLoop();
   }
 
   function restart() {
-    if (raf) cancelAnimationFrame(raf);
-    clearPending();
-    rng = mulberry32(seedFromString(seedInput.value.trim() || '1'));
-    gap = Number(gapInput.value);
-    minRadius = Number(minInput.value);
-    circles = []; activeList = []; fails = 0; done = false; paused = false;
-    observedMax = 1; settledCount = 0; cacheKey = '';
-    initGrid();
-
-    const wanted = Number(seedsInput.value);
-    for (let i = 0, guard = 0; i < wanted && guard < wanted * 200; guard++) {
-      if (trySeed()) i++;
-    }
-    setPauseLabel();
-    updateStatus();
-    draw();
-    raf = requestAnimationFrame(loop);
+    clear();
+    fill();
   }
 
   function skipToEnd() {
     if (done) return;
+    if (manual >= 0) { circles[manual].active = false; manual = -1; }
+    if (!autoOn) applyParams();
+    autoOn = true;
     paused = false;
     const t0 = performance.now();
-    while (!done && performance.now() - t0 < 8000) advance(40, 120);
+    while (!done && performance.now() - t0 < 8000) advance(40);
     if (!done) { done = true; activeList.forEach(i => circles[i].active = false); activeList = []; }
     draw();
     updateStatus();
-    setPauseLabel();
+    setButtons();
   }
+
+  /* ---- hand drawing ---- */
+  function toLogical(e) {
+    const rect = canvas.getBoundingClientRect();
+    return [(e.clientX - rect.left) / rect.width * W, (e.clientY - rect.top) / rect.height * W];
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (manual >= 0 || e.button !== 0 || !grid) return;
+    const [px, py] = toLogical(e);
+    if (px < 0 || py < 0 || px > W || py > W) return;
+    const max = maxRadiusAt(px, py);
+    if (max < 1 || circles.length >= MAX_CIRCLES) {
+      status.textContent = 'No room for a circle there.';
+      return;
+    }
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    circles.push({ x: px, y: py, r: Math.min(0.5, max), active: true, g: null });
+    manual = circles.length - 1;
+    insert(manual);
+    hover = null;
+    ensureLoop();
+  });
+
+  function release() {
+    if (manual < 0) return;
+    circles[manual].active = false;
+    manual = -1;
+    draw();
+    updateStatus();
+  }
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+
+  canvas.addEventListener('pointermove', e => {
+    if (manual >= 0 || !grid) return;
+    const [px, py] = toLogical(e);
+    const r = maxRadiusAt(px, py);
+    hover = r >= 1 ? { x: px, y: py, r } : null;
+    draw();
+  });
+  canvas.addEventListener('pointerleave', () => { hover = null; draw(); });
 
   /* ---- exports ---- */
   function exportJpeg() {
@@ -1713,12 +1830,14 @@ const Pack = (() => {
   dice.addEventListener('click', () => { seedInput.value = String(Math.floor(Math.random() * 1e6)); restart(); });
 
   pauseBtn.addEventListener('click', () => {
-    if (done) return;
+    if (!autoOn || done) return;
     paused = !paused;
-    setPauseLabel();
     updateStatus();
-    if (!paused && !raf) raf = requestAnimationFrame(loop);
+    setButtons();
+    if (!paused) ensureLoop();
   });
+  fillBtn.addEventListener('click', fill);
+  clearBtn.addEventListener('click', clear);
   restartBtn.addEventListener('click', restart);
   skipBtn.addEventListener('click', skipToEnd);
   el('packJpeg').addEventListener('click', exportJpeg);
